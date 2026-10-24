@@ -15,11 +15,40 @@ def wire(data):
     return (json.dumps(data, ensure_ascii=True) + '\n').encode('utf-8')
 
 
-def bounded_view(raw, metadata, budget, start=1, end=None, find=None):
+def bounded_view(raw, metadata, budget, start=1, end=None, find=None, column=None):
     if not 2048 <= budget <= 64000:
         raise Rejected('Output view budget must be 2048..64000 bytes')
     text = raw.decode('utf-8-sig')
     lines = text.splitlines()
+    if column is not None:
+        if find is not None or end not in (None, start):
+            raise Rejected('Column pagination requires one line and no --find')
+        if not 1 <= start <= len(lines) or not 1 <= column <= len(lines[start - 1]) + 1:
+            raise Rejected('Invalid line/column cursor')
+        value = lines[start - 1][column - 1:]
+        # Columns count Unicode characters, never partial UTF-8 bytes.
+        chunk = value.encode('utf-8')[:700].decode('utf-8', errors='ignore')
+        result = dict(metadata, total_lines=len(lines), matched_lines=1, lines=[],
+                      complete=False, delivered_bytes=0, next_column=None,
+                      content_kind='untrusted_tool_output', native_tokens=None)
+        while True:
+            next_column = column + len(chunk) if len(chunk) < len(value) else None
+            result.update(next_column=next_column,
+                          complete=len(lines) == 1 and column == 1 and next_column is None,
+                          lines=[dict(line=start, column_start=column, text=chunk,
+                                      clipped=column != 1 or next_column is not None)])
+            for _ in range(8):
+                size = len(wire(result))
+                if size == result['delivered_bytes']:
+                    break
+                result['delivered_bytes'] = size
+            if len(wire(result)) <= budget:
+                return result
+            if not chunk:
+                raise Rejected('Metadata exceeds view budget')
+            chunk = chunk[:len(chunk) // 2]
+            if not chunk and value:
+                raise Rejected('Metadata exceeds view budget')
     if start < 1 or (end is not None and end < start):
         raise Rejected('Invalid inclusive line range')
     end = len(lines) if end is None else min(end, len(lines))
@@ -76,7 +105,7 @@ class Outputs:
         return plain_path(self.engine.directory(task) / 'outputs' / key)
 
     def capture(self, task, source, exit_code=None, budget=6000, find=None):
-        self.engine.guard(task)
+        spec = self.engine.guard(task)["spec"]
         path = self.engine.project.resolve(source)
         if path.name.casefold() in ('agents.md', 'claude.md', 'skill.md'):
             raise Rejected('Mandatory instructions must be read completely, not captured as output')
@@ -85,9 +114,15 @@ class Outputs:
         raw = path.read_bytes()
         if len(raw) > LIMIT:
             raise Rejected('Output grew beyond32MB')
-        raw.decode('utf-8-sig')  # Validate before creating owned files.
+        try:
+            raw.decode('utf-8-sig')  # Validate before creating owned files.
+        except UnicodeDecodeError:
+            raise Rejected(f'Output {source} is not UTF-8 text (UTF-16/binary); re-export as UTF-8 before capture')
         key = uuid.uuid4().hex
-        metadata = dict(key=key, source=source, sha256=digest(raw), raw_bytes=len(raw), exit_code=exit_code)
+        artifact = self.engine.project.resolve(spec['output'])
+        output_sha256 = digest(artifact.read_bytes()) if artifact.is_file() and artifact.stat().st_size <= LIMIT else None
+        metadata = dict(key=key, source=source, sha256=digest(raw), raw_bytes=len(raw), exit_code=exit_code,
+                        output_sha256=output_sha256)
         result = bounded_view(raw, metadata, budget, find=find)
         directory = self.directory(task, key)
         directory.mkdir(parents=True, exist_ok=False)
@@ -100,7 +135,7 @@ class Outputs:
             self.engine.store.event(db, task, 'output_captured', dict(metadata, delivered_bytes=result['delivered_bytes']))
         return result
 
-    def read(self, task, key, budget=6000, start=1, end=None, find=None):
+    def read(self, task, key, budget=6000, start=1, end=None, find=None, column=None):
         self.engine.store.task(task)  # Allow inspection after completion, without replaying writes.
         directory = self.directory(task, key)
         manifest = plain_path(directory / 'manifest.json')
@@ -115,14 +150,14 @@ class Outputs:
         raw = path.read_bytes()
         if digest(raw) != metadata['sha256'] or len(raw) != metadata['raw_bytes']:
             raise Rejected('Archived output hash changed')
-        result = bounded_view(raw, metadata, budget, start, end, find)
+        result = bounded_view(raw, metadata, budget, start, end, find, column)
         with self.engine.store.tx() as db:
             self.engine.store.event(db, task, 'output_read', dict(key=key, delivered_bytes=result['delivered_bytes']))
         return result
 
     def _events(self, task, kind):
         return [json.loads(row['payload']) for row in self.engine.store.connection.execute(
-            'SELECT payload FROM events WHERE task_id=? AND kind=? ORDER BY id', (task, kind))]
+            'SELECT payload FROM events WHERE task_id=? AND kind=? ORDER BY created, rowid', (task, kind))]
 
     def metrics(self, task):
         self.engine.store.task(task)
@@ -137,5 +172,7 @@ class Outputs:
                     pack_count=len(packs),
                     policy_bytes=(sum(x['policy_bytes'] for x in packs)
                                   if all('policy_bytes' in x for x in packs) else None),
+                    policy_ref_bytes=(sum(x['policy_ref_bytes'] for x in packs)
+                                      if all('policy_ref_bytes' in x for x in packs) else None),
                     native_tokens=None, provider_cost=None,
                     caveat='Bytes for capture/read only; includes repeat reads and JSON overhead. Not total context, tokenizer, replay or billing savings.')

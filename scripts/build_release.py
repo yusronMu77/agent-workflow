@@ -18,11 +18,12 @@ PRODUCT = TOP + tuple('workflow_core/' + name + '.py' for name in
     'skills/agent-workflow/agents/openai.yaml', '.github/workflows/ci.yml',
     'scripts/build_release.py', 'scripts/install.py', 'scripts/install_chat.py',
     'scripts/verify_distribution.py', 'scripts/verify_portability.py',
-    'scripts/probe_codex_skill.py', 'scripts/benchmark_outputs.py',
-    'tests/test_distribution.py', 'tests/test_workflow.py', 'tests/test_outputs.py',
+    'scripts/probe_codex_skill.py', 'scripts/probe_claude_skill.py', 'scripts/benchmark_outputs.py',
+    'tests/test_distribution.py', 'tests/test_workflow.py', 'tests/test_outputs.py', 'tests/test_v11.py',
 ) + tuple('docs/' + name + '.md' for name in (
-    'ARCHITECTURE', 'CHAT-SMOKE', 'IMPLEMENTATION-PORTABLE-PLUGIN', 'PRD-PORTABLE-PLUGIN',
-    'PRIVATE-PUBLISH', 'RESEARCH-INTEGRATION', 'RUN-PORTABLE-PLUGIN', 'TOKEN-OPTIMIZATION'
+    'ARCHITECTURE', 'BENCHMARK-GUIDE', 'CHAT-SMOKE', 'CLAUDE-CODE', 'IMPLEMENTATION-PORTABLE-PLUGIN',
+    'PRD-PORTABLE-PLUGIN', 'PRD-V1-1', 'PRIVATE-PUBLISH', 'RESEARCH-INTEGRATION', 'RUN-PORTABLE-PLUGIN',
+    'TOKEN-OPTIMIZATION'
 )) + tuple(
     f'docs/{folder}/{name}.{extension}' for name in ('native-chat', 'portable-plugin')
     for folder, extension in (('src/diagrams', 'mmd'), ('img/diagrams', 'png'), ('img/diagrams', 'pdf')))

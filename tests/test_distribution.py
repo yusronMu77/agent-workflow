@@ -13,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from build_release import ROOT, audit, build, product_files
 from install import execute, inventory
 
+CURRENT = (ROOT / 'VERSION').read_text().strip()
+
 
 class DistributionTests(unittest.TestCase):
     def setUp(self):
@@ -75,7 +77,7 @@ class DistributionTests(unittest.TestCase):
         skill.write_text('user edit')
         for action in ('install', 'update', 'uninstall', 'check'):
             with self.assertRaises(ValueError):
-                execute(action, selected='1.0.0', **args)
+                execute(action, selected=CURRENT, **args)
         self.assertEqual(skill.read_text(), 'user edit')
 
     def test_upgrade_rollback_preserves_state_and_rules(self):
@@ -93,12 +95,12 @@ class DistributionTests(unittest.TestCase):
             path = source / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)
-        (source / 'VERSION').write_text('1.1.0')
-        execute('update', selected='1.1.0', root=source, **args)
+        (source / 'VERSION').write_text('99.0.0')
+        execute('update', selected='99.0.0', root=source, **args)
         receipt = self.project / '.agents/skills/agent-workflow/.agent-workflow-receipt.json'
-        self.assertEqual(json.loads(receipt.read_text())['version'], '1.1.0')
-        execute('update', selected='1.0.0', **args)
-        self.assertEqual(json.loads(receipt.read_text())['version'], '1.0.0')
+        self.assertEqual(json.loads(receipt.read_text())['version'], '99.0.0')
+        execute('update', selected=CURRENT, **args)
+        self.assertEqual(json.loads(receipt.read_text())['version'], CURRENT)
         execute('uninstall', **args)
         self.assertEqual(before, {p.name: p.read_bytes() for p in state.iterdir()})
         self.assertEqual((self.project / 'AGENTS.md').read_text(), 'user rules')

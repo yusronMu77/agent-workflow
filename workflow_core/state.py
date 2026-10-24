@@ -7,6 +7,9 @@ import uuid
 from .project import Rejected
 
 
+SCHEMA_VERSION = 1
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -38,13 +41,24 @@ class Store:
         self.connection.execute("PRAGMA foreign_keys=ON")
         self.connection.execute("PRAGMA journal_mode=WAL")
         self.connection.execute("PRAGMA synchronous=FULL")
+        try:
+            self._open()
+        except BaseException:
+            self.connection.close()  # A refused project/schema must not keep the database file locked.
+            raise
+
+    def _open(self):
         self.connection.executescript(SCHEMA)
         with self.tx() as db:
+            project = self.project
             row = db.execute("SELECT value FROM meta WHERE key='project_id'").fetchone()
             if row and row[0] != project.config["project_id"]:
                 raise Rejected("Database project identity mismatch")
             db.execute("INSERT OR IGNORE INTO meta VALUES('project_id',?)", (project.config["project_id"],))
-            db.execute("INSERT OR IGNORE INTO meta VALUES('schema','1')")
+            db.execute("INSERT OR IGNORE INTO meta VALUES('schema',?)", (str(SCHEMA_VERSION),))
+            found = int(db.execute("SELECT value FROM meta WHERE key='schema'").fetchone()[0])
+            if found > SCHEMA_VERSION:
+                raise Rejected("Database schema is newer than this kit; upgrade the kit, do not downgrade state")
             db.execute("INSERT OR IGNORE INTO releases(id) VALUES('builtin-v1')")
 
     def close(self):
@@ -80,8 +94,8 @@ class Store:
                    (event_id, task_id, kind, json.dumps(payload, ensure_ascii=False), now()))
         return event_id
 
-    def transition(self, task_id, status, kind, payload, expected_revision=None, **values):
-        allowed = {"summary", "next_action", "result", "repairs", "last_hash"}
+    def transition(self, task_id, status, kind, payload, expected_revision=None, clear_reviews=False, **values):
+        allowed = {"summary", "next_action", "result", "repairs", "last_hash", "spec"}
         if not set(values).issubset(allowed):
             raise Rejected("Unsupported transition fields")
         with self.tx() as db:
@@ -93,6 +107,8 @@ class Store:
             db.execute("UPDATE tasks SET " + ",".join(key + "=?" for key in updates) + " WHERE id=?",
                        [*updates.values(), task_id])
             self.event(db, task_id, kind, payload)
+            if clear_reviews:
+                db.execute("DELETE FROM reviews WHERE task_id=?", (task_id,))
             if status in ("completed", "partial", "cancelled"):
                 db.execute("DELETE FROM reservations WHERE task_id=?", (task_id,))
         return self.task(task_id)

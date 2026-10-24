@@ -144,6 +144,23 @@ class WorkflowTests(unittest.TestCase):
         result = self.engine.reconcile("example", "succeeded", proof["ref"], "Job status and output checked")
         self.assertEqual(result["status"], "running")
 
+    def test_cancel_preserves_unknown_until_reconciled(self):
+        self.begin()
+        self.engine.pack("example")
+        proof = self.engine.evidence("example", "receipt.txt", "External effects checked")
+        self.engine.unknown("example", "Write timed out")
+        for _ in range(2):
+            self.assertEqual(self.engine.cancel("example", "Stop requested")["status"], "blocked_outcome")
+            with self.assertRaises(Rejected):
+                self.engine.cancel("example", "Jobs stopped", quiescent=True)
+            with self.assertRaises(Rejected):
+                self.begin("other")
+            with self.assertRaises(Rejected):
+                self.engine.pack("example")
+        self.engine.reconcile("example", "succeeded", proof["ref"], "Effects inspected")
+        self.assertEqual(self.engine.cancel("example", "Settled", quiescent=True)["status"], "cancelled")
+        self.begin("replacement")
+
     def test_memory_candidate_stale_source_and_revocation(self):
         result = propose_memory(self.engine.store, "project:source.txt", "Atlas retains data for 7 days.")
         self.assertEqual(recall(self.engine.store, "Atlas")["hits"], [])

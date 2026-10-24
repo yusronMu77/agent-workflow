@@ -57,6 +57,16 @@ perubahan konteks. Helper tidak dapat menghapus instruksi/history yang telah mas
 pisahkan cached input dan output/reasoning sesuai field yang tersedia, serta bandingkan kualitas,
 latency dan retry pada tugas yang sama. `rtk gain` bukan pengganti usage tersebut.
 
+## Referensi instruksi yang sudah dimuat host
+
+`pack` mengenali file instruksi yang dimuat host sendiri (`CLAUDE.md` untuk Claude Code,
+`AGENTS.md` untuk Codex) dan mencantumkannya sebagai referensi: path, sha256 dan ukuran, tanpa
+isi. Hash tetap diverifikasi saat pack dibuat dan pada setiap operasi berikutnya. Host dideteksi
+dari `CLAUDECODE=1`; pilih eksplisit dengan `pack --host claude|codex|none`. Host tak dikenal
+menyalin semua instruksi. `policy_bytes` menghitung isi yang disalin, `policy_ref_bytes` yang
+hanya direferensikan; keduanya muncul di hasil `pack` dan `metrics`. Ini mengurangi byte pack,
+bukan riwayat chat atau token native.
+
 ## RTK opsional
 
 Jika RTK sudah tersedia, gunakan CLI eksplisit seperti `rtk git status`. Untuk test gagal atau

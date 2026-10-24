@@ -54,7 +54,7 @@ mendukungnya. Instalasi plugin dan validator schema tidak membuktikan native tas
 ```sh
 python scripts/install.py check --client both --scope project --project /absolute/target
 # Jalankan dari checkout versi baru yang dipilih secara eksplisit:
-python scripts/install.py update --client both --scope project --project /absolute/target --version 1.0.0
+python scripts/install.py update --client both --scope project --project /absolute/target --version 1.1.0
 python scripts/install.py uninstall --client both --scope project --project /absolute/target --dry-run
 python scripts/install.py uninstall --client both --scope project --project /absolute/target
 ```
@@ -86,7 +86,16 @@ python wf.py --project ROOT resume guide
 `--require TEXT` adalah substring literal; semantic acceptance memakai `--review-required ID`.
 Review tercatat adalah klaim chat dengan evidence, bukan user approval atau bukti independen.
 Exit 0 berhasil, 2 ditolak/error, 3 partial/repair/needs-review/blocked outcome. Baca status JSON.
-Task default dibatasi 60 menit; setelah deadline buat task lanjutan dan pertahankan record lama.
+Task default dibatasi 60 menit (`begin --minutes N` mengubahnya, 1–10080); setelah deadline buat
+task lanjutan dan pertahankan record lama.
+
+Untuk code, `begin --check capture_exit_zero` meminta capture dengan `--exit-code 0` yang dibuat
+saat output memiliki hash yang sama dengan hash saat `verify`. Exit code adalah nilai yang dilaporkan
+chat, bukan hasil pengamatan proses. `review --evidence output:KEY` mengikat review ke arsip capture.
+`pack` merujuk file instruksi yang dimuat host sendiri (CLAUDE.md di Claude Code) tanpa menyalin
+isinya; `pack --host none` menyalin semuanya. Bila policy atau source berubah di tengah task dan
+perubahan itu sudah Anda tinjau, `rebind TASK --note TEXT` memperbarui snapshot, menghapus review
+dan mewajibkan `pack` ulang. Detail Claude Code: [CLAUDE-CODE.md](docs/CLAUDE-CODE.md).
 
 Multi-folder: `init --workspace FILE.code-workspace` atau `init --root library=../library`.
 Binding existing dipertahankan. Jangan mengubah binding saat task berjalan. Checkpoint dan resume
@@ -114,6 +123,7 @@ RTK opsional dan dipanggil eksplisit; tidak ada global hook, model weights atau 
 python -m unittest discover -s tests -v
 python scripts/verify_portability.py
 python scripts/verify_distribution.py
+python scripts/probe_claude_skill.py
 python scripts/benchmark_outputs.py --output dist/benchmark.json
 ```
 
@@ -135,7 +145,7 @@ open-source baru. Detail keputusan, acceptance F01–F18, evidence dan keterbata
 - Skill tidak ditemukan: reload client, periksa scope/path dengan installer check.
 - Ownership conflict: pertahankan file user; jangan paksa overwrite atau uninstall skill asing.
 - Marker interrupted install: inspeksi receipt/staging dan rekonsiliasi sesuai PRIVATE-PUBLISH.md.
-- Resume ditolak karena drift/deadline: tinjau perubahan, simpan bukti dan buat task lanjutan.
+- Resume ditolak karena drift: tinjau perubahan lalu `rebind`. Karena deadline: simpan bukti dan buat task lanjutan.
 - Private marketplace fetch gagal: periksa akses Git native client; jangan masukkan secret ke paket.
 
 [Arsitektur](docs/ARCHITECTURE.md), [PRD](docs/PRD-PORTABLE-PLUGIN.md),

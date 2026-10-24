@@ -7,7 +7,7 @@ import sqlite3
 import shutil
 import sys
 
-from workflow_core.engine import Engine, WORKFLOWS
+from workflow_core.engine import AUTOLOAD, CHECKS, Engine, WORKFLOWS
 from workflow_core.feedback import collect, commit_memory, propose_memory, recall
 from workflow_core.project import Project, Rejected, digest
 from workflow_core.state import Store
@@ -36,6 +36,7 @@ def main(argv=None):
     read.add_argument("--start", type=int, default=1)
     read.add_argument("--end", type=int)
     read.add_argument("--find")
+    read.add_argument("--column", type=int, help="1-based Unicode character column on --start line; follow next_column until null")
     read.add_argument("--max-bytes", type=int, default=6000)
     metrics = commands.add_parser("metrics", help="Observed payload bytes; native tokens/cost remain unknown")
     metrics.add_argument("task")
@@ -46,11 +47,15 @@ def main(argv=None):
     new.add_argument("--output", required=True)
     new.add_argument("--source", action="append", default=[], help="alias:path:start:end; inclusive 1-based UTF-8 line range")
     new.add_argument("--require", action="append", default=[], help="Literal substring required in output; use --review-required for semantic acceptance")
-    new.add_argument("--check", action="append", default=[], choices=["json", "python_syntax", "pdf_header"])
+    new.add_argument("--check", action="append", default=[], choices=list(CHECKS),
+                     help="capture_exit_zero needs a capture --exit-code 0 made while the output had its current hash")
+    new.add_argument("--minutes", type=int, help="Task deadline in minutes (default: project budget)")
     new.add_argument("--review-required", action="append", default=[])
-    for name in ("pack", "show", "resume", "verify", "checkpoint", "evidence", "review", "unknown", "reconcile", "cancel"):
+    for name in ("pack", "show", "resume", "verify", "checkpoint", "evidence", "review", "unknown", "reconcile", "cancel", "rebind"):
         item = commands.add_parser(name)
         item.add_argument("task")
+        if name == "pack":
+            item.add_argument("--host", choices=sorted(AUTOLOAD), help="Reference instruction files this host autoloads instead of repeating them (default: detected; none inlines all)")
         if name == "checkpoint":
             item.add_argument("--summary", required=True)
             item.add_argument("--next", required=True)
@@ -62,7 +67,7 @@ def main(argv=None):
             item.add_argument("--result", choices=["passed", "failed"], required=True)
             item.add_argument("--evidence", required=True)
             item.add_argument("--note", required=True)
-        if name in ("unknown", "cancel", "reconcile"):
+        if name in ("unknown", "cancel", "reconcile", "rebind"):
             item.add_argument("--note", required=True)
         if name == "reconcile":
             item.add_argument("--outcome", choices=["succeeded", "failed"], required=True)
@@ -109,13 +114,13 @@ def main(argv=None):
                           "optional_adapters": "not_required_not_qualified"}
             elif args.command == "begin":
                 result = engine.create(args.task, args.request, args.workflow, args.output,
-                                       args.source, args.require, args.check, args.review_required)
+                                       args.source, args.require, args.check, args.review_required, args.minutes)
             elif args.command == "pack":
-                result = engine.pack(args.task)
+                result = engine.pack(args.task, args.host)
             elif args.command == "capture":
                 result = Outputs(engine).capture(args.task, args.input, args.exit_code, args.max_bytes, args.find)
             elif args.command == "read-output":
-                result = Outputs(engine).read(args.task, args.key, args.max_bytes, args.start, args.end, args.find)
+                result = Outputs(engine).read(args.task, args.key, args.max_bytes, args.start, args.end, args.find, args.column)
             elif args.command == "metrics":
                 result = Outputs(engine).metrics(args.task)
             elif args.command == "show":
@@ -130,6 +135,8 @@ def main(argv=None):
                 result = engine.review(args.task, args.criterion, args.result, args.evidence, args.note)
             elif args.command == "verify":
                 result = engine.verify(args.task)
+            elif args.command == "rebind":
+                result = engine.rebind(args.task, args.note)
             elif args.command == "unknown":
                 result = engine.unknown(args.task, args.note)
             elif args.command == "reconcile":

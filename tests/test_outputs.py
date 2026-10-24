@@ -84,6 +84,31 @@ class OutputTests(unittest.TestCase):
         with self.assertRaises(Rejected):
             self.outputs.read('test', result['key'])
 
+    def test_column_pages_reconstruct_long_unicode_line(self):
+        original = 'A' * 2000 + '故障Ω😀' * 1000 + 'TAIL'
+        captured = self.capture(original)
+        column, chunks = 1, []
+        while column is not None:
+            page = self.outputs.read('test', captured['key'], budget=2048, column=column)
+            self.assertLessEqual(len(wire(page)), 2048)
+            self.assertEqual(page['delivered_bytes'], len(wire(page)))
+            chunks.append(page['lines'][0]['text'])
+            next_column = page['next_column']
+            if next_column is not None:
+                self.assertGreater(next_column, column)
+            column = next_column
+        self.assertEqual(''.join(chunks), original)
+
+    def test_column_cursor_validation_and_empty_line(self):
+        captured = self.capture('first\n\nlast')
+        page = self.outputs.read('test', captured['key'], start=2, column=1)
+        self.assertEqual(page['lines'][0]['text'], '')
+        self.assertIsNone(page['next_column'])
+        for options in ({'column': 0}, {'column': 7}, {'column': 1, 'start': 4},
+                        {'column': 1, 'find': 'first'}, {'column': 1, 'end': 3}):
+            with self.assertRaises(Rejected):
+                self.outputs.read('test', captured['key'], **options)
+
     def test_manifest_tamper_rejected(self):
         result = self.capture('raw\n', exit_code=4)
         path = self.outputs.directory('test', result['key']) / 'manifest.json'
@@ -102,7 +127,7 @@ class OutputTests(unittest.TestCase):
 
     def test_invalid_utf8_or_budget_creates_no_archive(self):
         (self.root / 'tool.txt').write_bytes(b'\xff\xfe\x00')
-        with self.assertRaises(UnicodeError):
+        with self.assertRaisesRegex(Rejected, 'UTF-8'):
             self.outputs.capture('test', 'project:tool.txt')
         with self.assertRaises(Rejected):
             self.capture('ok', budget=1)

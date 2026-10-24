@@ -12,6 +12,14 @@ from .state import Store, now
 
 WORKFLOWS = ("document", "code", "research", "design")
 TERMINAL = ("completed", "partial", "cancelled")
+CHECKS = ("json", "python_syntax", "pdf_header", "capture_exit_zero")
+# Instruction files a host loads into the chat by itself; a pack may reference instead of repeat them.
+AUTOLOAD = {"claude": ("CLAUDE.md",), "codex": ("AGENTS.md",), "none": ()}
+
+
+def detect_host():
+    """Claude Code exports CLAUDECODE=1 to its terminal tool; unknown hosts keep every policy inline."""
+    return "claude" if os.environ.get("CLAUDECODE") == "1" else "none"
 
 
 class Engine:
@@ -36,7 +44,7 @@ class Engine:
         temporary.write_bytes(data)
         temporary.replace(path)
 
-    def create(self, task_id, request, workflow, output, sources=(), contains=(), checks=(), reviews=()):
+    def create(self, task_id, request, workflow, output, sources=(), contains=(), checks=(), reviews=(), minutes=None):
         self.directory(task_id)
         if not request.strip() or workflow not in WORKFLOWS:
             raise Rejected("Nonempty request and a supported workflow are required")
@@ -51,18 +59,21 @@ class Engine:
                 raise Rejected("Empty required text")
             criteria.append({"id": f"contains-{index}", "kind": "contains", "value": value, "grade": "structural"})
         for value in dict.fromkeys(checks):
-            if value not in ("json", "python_syntax", "pdf_header"):
+            if value not in CHECKS:
                 raise Rejected("Unsupported validator")
             criteria.append({"id": value, "kind": value, "grade": "structural"})
         for value in dict.fromkeys(["final_review", *reviews]):
             if not re.fullmatch(r"[a-z][a-z0-9_-]{0,63}", value):
                 raise Rejected("Invalid review criterion")
             criteria.append({"id": value, "kind": "review", "grade": "native_review"})
+        minutes = self.project.config["budget"]["minutes"] if minutes is None else minutes
+        if type(minutes) is not int or not 1 <= minutes <= 10080:
+            raise Rejected("Task minutes must be an integer between 1 and 10080")
         spec = {"request": request, "workflow": workflow, "output": output, "sources": evidence,
                 "policies": self.project.policies([output] + [s["ref"] for s in evidence]),
                 "acceptance": criteria, "config_sha256": self.project.config_hash,
                 "project_id": self.project.config["project_id"], "release_id": "builtin-v1",
-                "deadline": (datetime.now(timezone.utc) + timedelta(minutes=self.project.config["budget"]["minutes"])).isoformat()}
+                "deadline": (datetime.now(timezone.utc) + timedelta(minutes=minutes)).isoformat()}
         self.store.allowed_release(spec["release_id"])
         with self.store.tx() as db:
             self.store.allowed_release(spec["release_id"])
@@ -98,15 +109,26 @@ class Engine:
         self.write_owned(self.directory(task_id) / "checkpoint.json", (json.dumps(public, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
         return public
 
-    def pack(self, task_id):
+    def pack(self, task_id, host=None):
+        host = detect_host() if host is None else host
+        if host not in AUTOLOAD:
+            raise Rejected("Unknown host; use claude, codex or none")
         task = self.guard(task_id)
         spec = task["spec"]
+        inline = [p for p in spec["policies"] if Path(p["path"]).name not in AUTOLOAD[host]]
+        referenced = [p for p in spec["policies"] if Path(p["path"]).name in AUTOLOAD[host]]
         parts = ["# Task\n" + spec["request"], "# Workflow and output\n" + spec["workflow"] + " → " + spec["output"],
                  "# Acceptance\n" + json.dumps(spec["acceptance"], ensure_ascii=False),
                  "# State\n" + json.dumps({k: task[k] for k in ("revision", "summary", "next_action", "repairs")}),
-                 "# Required disk instructions (complete)"]
-        for policy in spec["policies"]:
+                 "# Required disk instructions (complete)" if not referenced else
+                 "# Required disk instructions (inline, plus host-autoloaded references)"]
+        for policy in inline:
             parts.append("## " + policy["path"] + " sha256=" + policy["sha256"] + "\n" + policy["text"])
+        for policy in referenced:
+            size = len(policy["text"].encode("utf-8"))
+            parts.append("## " + policy["path"] + " sha256=" + policy["sha256"] + f" (reference, {size} bytes not repeated)\n"
+                         f"The {host} host loads this file itself; the hash was verified fresh when this pack was built. "
+                         "Reread the file if it is not in your context, e.g. the chat started outside this project.")
         parts.append("# Selected evidence")
         for source in spec["sources"]:
             parts.append(f"## {source['ref']}:{source['start']}:{source['end']} sha256={source['sha256']}\n" + source["text"])
@@ -117,13 +139,16 @@ class Engine:
             raise Rejected("Context byte budget exceeded; split evidence/task, never trim mandatory policy")
         path = self.directory(task_id) / f"context-{task['revision']}.md"
         self.write_owned(path, data)
-        policy_bytes = sum(len(p['text'].encode('utf-8')) for p in spec['policies'])
+        policy_bytes = sum(len(p['text'].encode('utf-8')) for p in inline)
+        policy_ref_bytes = sum(len(p['text'].encode('utf-8')) for p in referenced)
         evidence_bytes = sum(len(s['text'].encode('utf-8')) for s in spec['sources'])
         self.store.transition(task_id, "running", "context_prepared", {"bytes": len(data), "sha256": digest(data),
-                              "policy_bytes": policy_bytes, "evidence_bytes": evidence_bytes},
+                              "policy_bytes": policy_bytes, "evidence_bytes": evidence_bytes,
+                              "host": host, "policy_ref_bytes": policy_ref_bytes},
                               expected_revision=task["revision"], next_action="Read pack, execute native work, record review evidence, verify")
         return {**self.export(task_id), "context_path": str(path), "context_bytes": len(data),
-                "policy_bytes": policy_bytes, "evidence_bytes": evidence_bytes, "native_tokens": None}
+                "policy_bytes": policy_bytes, "policy_ref_bytes": policy_ref_bytes, "host": host,
+                "evidence_bytes": evidence_bytes, "native_tokens": None}
 
     def checkpoint(self, task_id, summary, next_action):
         task = self.guard(task_id)
@@ -152,11 +177,32 @@ class Engine:
             if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,95}", name):
                 raise Rejected("Invalid task evidence ref")
             path = plain_path(self.directory(task_id) / "evidence" / name)
+        elif reference.startswith("output:"):
+            key = reference[7:]
+            recorded = next((c for c in self.captures(task_id) if c.get("key") == key), None)
+            if recorded is None:
+                raise Rejected("Unknown captured output; capture it first")
+            path = plain_path(self.directory(task_id) / "outputs" / key / "raw.txt")
+            raw = path.read_bytes() if path.stat().st_size <= 32000000 else b""
+            if digest(raw) != recorded["sha256"]:
+                raise Rejected("Captured output changed or exceeds 32MB")
+            return {"ref": reference, "sha256": recorded["sha256"]}
         else:
             path = self.project.resolve(reference)
         if path.stat().st_size > 32000000:
             raise Rejected("Evidence/artifact exceeds32MB")
         return {"ref": reference, "sha256": digest(path.read_bytes())}
+
+    def captures(self, task_id):
+        return [json.loads(row["payload"]) for row in self.store.connection.execute(
+            "SELECT payload FROM events WHERE task_id=? AND kind='output_captured' ORDER BY created, rowid", (task_id,))]
+
+    def capture_gate(self, task_id, output_hash):
+        """Pass only for a caller-reported exit 0 captured while the output had exactly this hash."""
+        bound = [c for c in self.captures(task_id) if c.get("output_sha256") == output_hash and c.get("exit_code") is not None]
+        if any(c["exit_code"] == 0 for c in bound):
+            return "passed"
+        return "failed" if bound else "not_checked"
 
     def review(self, task_id, criterion, result, evidence, note):
         task = self.guard(task_id)
@@ -202,6 +248,8 @@ class Engine:
                     result = "passed"
                 elif kind == "pdf_header":
                     result = "passed" if raw.startswith(b"%PDF-") else "failed"
+                elif kind == "capture_exit_zero":
+                    result = self.capture_gate(task_id, output_hash)
                 elif kind == "review":
                     row = self.store.connection.execute("SELECT * FROM reviews WHERE task_id=? AND criterion=?", (task_id, criterion["id"])).fetchone()
                     if row:
@@ -227,7 +275,7 @@ class Engine:
             self.write_owned(snapshot, raw)
         outcome = {"checks": results, "output": {"ref": task["spec"]["output"], "sha256": output_hash},
                    "snapshot": str(snapshot.relative_to(self.project.home)), "native_usage": "unavailable"}
-        next_action = {"completed": "Deliver artifact and scoped findings", "needs_review": "Record remaining native review evidence",
+        next_action = {"completed": "Deliver artifact and scoped findings", "needs_review": "Record remaining review evidence or capture a passing check for this exact output",
                        "repair_needed": "Patch failed criteria only; rebuild pack if needed", "partial": "Deliver partial findings; repair budget exhausted"}[status]
         self.store.transition(task_id, status, "validation_failed" if failed else "validation_result", outcome,
                               expected_revision=task["revision"], result=json.dumps(outcome), repairs=repairs,
@@ -250,6 +298,29 @@ class Engine:
                 raise Rejected("Artifact snapshot integrity failed")
         return self.export(task_id)
 
+    def rebind(self, task_id, note):
+        """Accept reviewed policy/source drift explicitly: refresh the snapshot, clear reviews, require a new pack."""
+        task = self.store.task(task_id)
+        if task["status"] in TERMINAL + ("blocked_outcome", "cancel_requested") or not note.strip():
+            raise Rejected("Rebind needs an active, unblocked task and a note describing the reviewed change")
+        spec = task["spec"]
+        self.store.allowed_release(spec["release_id"])
+        if Project(self.project.root).config_hash != spec["config_sha256"]:
+            raise Rejected("Configuration changed; create a new task after review")
+        policies = self.project.policies([spec["output"]] + [s["ref"] for s in spec["sources"]])
+        sources = [self.project.snapshot(s["ref"], s["start"], s["end"]) for s in spec["sources"]]
+        old = {x["path"]: x["sha256"] for x in spec["policies"]}
+        new = {x["path"]: x["sha256"] for x in policies}
+        changes = {"policies": sorted(p for p in old.keys() | new.keys() if old.get(p) != new.get(p)),
+                   "sources": [f'{a["ref"]}:{a["start"]}:{a["end"]}' for a, b in zip(spec["sources"], sources) if a["sha256"] != b["sha256"]]}
+        if not changes["policies"] and not changes["sources"]:
+            raise Rejected("Nothing changed since the task snapshot; no rebind needed")
+        self.store.transition(task_id, "ready", "rebound", {"note": note, "changes": changes},
+                              expected_revision=task["revision"], clear_reviews=True,
+                              spec=json.dumps(dict(spec, policies=policies, sources=sources), ensure_ascii=False),
+                              next_action="Run pack to read the updated policy/sources, then redo reviews")
+        return {**self.export(task_id), "changes": changes, "reviews_cleared": True}
+
     def unknown(self, task_id, note):
         task = self.guard(task_id)
         self.store.transition(task_id, "blocked_outcome", "outcome_unknown", {"note": note},
@@ -262,9 +333,10 @@ class Engine:
             raise Rejected("Cancellation needs a nonterminal task and a concrete note")
         if task["status"] == "blocked_outcome" and quiescent:
             raise Rejected("Reconcile unknown external effects before declaring cancelled")
-        status = "cancelled" if quiescent else "cancel_requested"
+        # A cancellation request must not erase the unresolved external outcome.
+        status = "blocked_outcome" if task["status"] == "blocked_outcome" else ("cancelled" if quiescent else "cancel_requested")
         self.store.transition(task_id, status, "cancel_recorded", {"note": note, "quiescent": quiescent},
-                              expected_revision=task["revision"], next_action="Native owner must stop/reconcile jobs" if not quiescent else "Cancellation recorded; no process was killed by this CLI")
+                              expected_revision=task["revision"], next_action="Reconcile unknown effects before cancelling" if status == "blocked_outcome" else ("Native owner must stop/reconcile jobs" if not quiescent else "Cancellation recorded; no process was killed by this CLI"))
         return self.export(task_id)
 
     def reconcile(self, task_id, outcome, evidence, note):

@@ -110,7 +110,10 @@ class Project:
         if path.stat().st_size > self.config["budget"]["source_bytes"]:
             raise Rejected("Source too large; prepare a smaller explicit source")
         raw = path.read_bytes()
-        text = raw.decode("utf-8-sig")
+        try:
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            raise Rejected(f"Source {reference} is not UTF-8 text; export a UTF-8 copy and cite that file")
         if start is not None:
             lines = text.splitlines(keepends=True)
             if not 1 <= start <= end <= len(lines):
@@ -136,9 +139,9 @@ class Project:
         references = [spec["output"]] + [s["ref"] for s in spec["sources"]]
         policies = self.policies(references)
         if [(x["path"], x["sha256"]) for x in policies] != [(x["path"], x["sha256"]) for x in spec["policies"]]:
-            raise Rejected("Applicable policy set/content changed; review before continuing")
+            raise Rejected("Applicable policy set/content changed; review the change, then run rebind with a note")
         for source in spec["sources"]:
             if self.resolve(source["ref"]) == self.resolve(spec["output"]):
                 continue  # The declared output may intentionally edit this source in place.
             if self.snapshot(source["ref"], source["start"], source["end"])["sha256"] != source["sha256"]:
-                raise Rejected("Source changed; review before continuing")
+                raise Rejected("Source changed; review the change, then run rebind with a note")
