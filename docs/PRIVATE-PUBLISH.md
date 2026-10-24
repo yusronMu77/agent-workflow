@@ -4,6 +4,15 @@ Target yang diizinkan: `yusronMu77/agent-workflow`, visibility **PRIVATE**.
 Candidate bukan final release. Status aktual terdapat di IMPLEMENTATION-PORTABLE-PLUGIN.md.
 Tidak ada credential yang dibundel. Tidak ada lisensi open-source yang ditambahkan.
 
+## Candidate pertama (2026-10-25)
+
+Repo https://github.com/yusronMu77/agent-workflow dibuat dengan visibility PRIVATE, permission
+ADMIN dan akun aktif yusronMu77. Remote origin tepat ke repo tersebut. Candidate pertama
+`8af87460855ee817e4d3afe32087c12d226bba7c` dipush tanpa force; remote SHA dicocokkan ulang.
+48 file produk direview; staging tepat sama dengan allowlist; Gitleaks 8.30.1 memindai commit
+dengan nol temuan. `.agent-workflow`/auth/env/session DB/link tidak tracked. Ini catatan candidate,
+bukan bukti final release. Qualification akhir dicatat dalam laporan implementasi.
+
 ## Komputer baru
 
 Pasang Git, Python 3.10+ dan client pilihan melalui installer resminya. Gunakan login GitHub
