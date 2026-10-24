@@ -1,0 +1,11 @@
+flowchart TD
+    A[Repo privat berversi] --> B[Core dan skill]
+    B --> C[Build paket bersih]
+    C --> D[Skill langsung]
+    C --> E[Adapter Codex]
+    C --> F[Adapter Claude]
+    D --> G[Project pengguna]
+    E --> G
+    F --> G
+    G --> H[State lokal project]
+    H --> I[Checkpoint dan bukti]

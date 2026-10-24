@@ -1,0 +1,6 @@
+interface:
+  display_name: "Agent Workflow"
+  short_description: "Durable tasks and context from your current chat"
+  default_prompt: "Use $agent-workflow to complete this task with focused context, evidence, and a resumable checkpoint."
+policy:
+  allow_implicit_invocation: true

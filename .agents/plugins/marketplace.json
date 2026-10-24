@@ -1,0 +1,10 @@
+{
+  "name": "agent-workflow-private",
+  "interface": {"displayName": "Agent Workflow private"},
+  "plugins": [{
+    "name": "agent-workflow",
+    "source": {"source": "local", "path": "./"},
+    "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+    "category": "Productivity"
+  }]
+}

@@ -1,0 +1,10 @@
+flowchart TD
+  U[Instruksi user] --> S[Skill workflow]
+  S --> P[Context pack]
+  P --> C[Chat memakai tools]
+  C --> A[Artifact dan bukti]
+  A --> V[Validator dan review]
+  V -->|lulus| D[(SQLite dan outbox)]
+  V -->|repair terbatas| C
+  D --> F[Proposal feedback]
+  D --> M[Memory kutipan]

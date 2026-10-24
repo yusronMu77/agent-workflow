@@ -1,0 +1,6 @@
+{
+  "name": "agent-workflow-private",
+  "description": "Private distribution of the Agent Workflow toolkit",
+  "owner": {"name": "yusronMu77"},
+  "plugins": [{"name": "agent-workflow", "source": "./", "description": "Durable native chat workflow"}]
+}

@@ -1,0 +1,9 @@
+.agent-workflow/
+.agents/skills/
+.claude/skills/
+__pycache__/
+*.pyc
+*.sqlite*
+outputs/
+dist/
+*.egg-info/

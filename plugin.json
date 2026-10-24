@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "agent-workflow",
+  "version": "1.0.0",
+  "description": "Durable project workflow and bounded output retrieval for the current native coding chat.",
+  "author": {"name": "yusronMu77"},
+  "repository": "https://github.com/yusronMu77/agent-workflow",
+  "keywords": ["workflow", "checkpoint", "context"]
+}

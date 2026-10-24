@@ -1,0 +1,27 @@
+{
+  "folders": [
+    { "name": "agent-workflow", "path": "." }
+  ],
+  "settings": {
+    "files.encoding": "utf8",
+    "files.eol": "\n",
+    "files.exclude": { "**/__pycache__": true },
+    "search.exclude": { "**/.agent-workflow/**": true, "**/__pycache__/**": true },
+    "python.testing.unittestEnabled": true,
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestArgs": ["-v", "-s", "tests", "-p", "test_*.py"],
+    "terminal.integrated.cwd": "${workspaceFolder:agent-workflow}"
+  },
+  "extensions": { "recommendations": ["openai.chatgpt", "ms-python.python"] },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      { "label": "Workflow: Init", "type": "process", "command": "python", "args": ["wf.py", "init"], "options": { "cwd": "${workspaceFolder:agent-workflow}" }, "problemMatcher": [] },
+      { "label": "Workflow: Doctor", "type": "process", "command": "python", "args": ["wf.py", "doctor"], "options": { "cwd": "${workspaceFolder:agent-workflow}" }, "problemMatcher": [] },
+      { "label": "Workflow: Tasks", "type": "process", "command": "python", "args": ["wf.py", "list"], "options": { "cwd": "${workspaceFolder:agent-workflow}" }, "problemMatcher": [] },
+      { "label": "Workflow: Feedback", "type": "process", "command": "python", "args": ["wf.py", "feedback", "--collect"], "options": { "cwd": "${workspaceFolder:agent-workflow}" }, "problemMatcher": [] },
+      { "label": "Workflow: Tests", "type": "process", "command": "python", "args": ["-m", "unittest", "discover", "-s", "tests", "-v"], "options": { "cwd": "${workspaceFolder:agent-workflow}" }, "group": { "kind": "test", "isDefault": true }, "problemMatcher": [] },
+      { "label": "Workflow: Install chat skill", "type": "process", "command": "python", "args": ["scripts/install_chat.py"], "options": { "cwd": "${workspaceFolder:agent-workflow}" }, "problemMatcher": [] }
+    ]
+  }
+}
