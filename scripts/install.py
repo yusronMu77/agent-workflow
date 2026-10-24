@@ -38,7 +38,7 @@ def payload(root):
     for name, body in product_files(root):
         if name.startswith('skills/agent-workflow/'):
             result[name.removeprefix('skills/agent-workflow/')] = body
-        elif name in ('wf.py', 'VERSION') or name.startswith('workflow_core/'):
+        elif name in ('wf.py', 'VERSION', 'README.md') or name.startswith(('workflow_core/', 'docs/')):
             result['_kit/' + name] = body
     audit(result)
     return result

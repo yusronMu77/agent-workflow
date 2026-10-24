@@ -123,6 +123,9 @@ class DistributionTests(unittest.TestCase):
     def test_direct_skill_is_independent_and_requires_target(self):
         execute('install', 'codex', 'project', project=self.project)
         launcher = self.project / '.agents/skills/agent-workflow/scripts/wf.py'
+        docs = launcher.parents[1] / '_kit'
+        self.assertTrue((docs / 'README.md').is_file())
+        self.assertTrue((docs / 'docs/PRIVATE-PUBLISH.md').is_file())
         target = self.base / 'other project'
         target.mkdir()
         result = subprocess.run([sys.executable, '-I', str(launcher), '--project', str(target), 'init'],

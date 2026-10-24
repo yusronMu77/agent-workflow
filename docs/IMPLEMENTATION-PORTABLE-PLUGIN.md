@@ -36,6 +36,8 @@ Tidak ada klaim parity native kedua client, UI smoke, atau savings provider.
   receipt hash, staging dan exclusive pending marker. Tidak ada absolute source pointer/junction.
   Scope project/user dan codex/claude/both didukung; dry-run tidak menulis. Legacy installer link
   dipertahankan tanpa mengambil alih link/file existing.
+  `_kit` juga membawa README/docs untuk referensi skill yang mandiri; fixture memeriksa kedua
+  jalur dokumentasi dan instruksi skill memilih layout source/plugin atau direct secara eksplisit.
 - Update/rollback memilih checkout VERSION secara eksplisit. Tidak ada migrasi schema DB atau
   mutasi state/rules target. Interrupted mutation memblokir replay sampai rekonsiliasi.
   `both` berurutan, bukan transaksi atomik lintas client; check setiap scope setelah kegagalan.
