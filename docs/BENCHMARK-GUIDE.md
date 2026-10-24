@@ -83,7 +83,7 @@ Contoh memperlihatkan cabang acceptance gagal. Jika lolos, gunakan passed. `veri
 
 Proposal existing generik dan membawa payload event serta task_id. Kumpulkan hasil lengkap, root cause, kandidat perbaikan dan bukti dalam laporan/task terkait. Collector tidak menilai benchmark JSON sendiri; capture --exit-code 1 juga tidak otomatis membuat validation_failed. Jangan menulis langsung ke database atau menyuntik event palsu.
 
-Demonstrasi aktual dilakukan di fixture `C:/Users/mywork/AppData/Local/Temp/workflow-output-benchmark-bjlor5vk`: task efficiency-feedback menilai syarat delivered < raw pada scoped fixture. Nilai 874 > 35 membuat payload_efficiency failed, final_review passed karena pengukuran benar; verify menghasilkan repair_needed dan 1 proposal. Collect ulang menghasilkan 0 proposal baru, total tetap 1. Kegagalan ini tidak berarti capture buruk untuk log besar. Fixture dipertahankan untuk inspeksi; bukan hasil agent A/B.
+Demonstrasi aktual dilakukan di fixture di direktori sementara (`workflow-output-benchmark-*`): task efficiency-feedback menilai syarat delivered < raw pada scoped fixture. Nilai 874 > 35 membuat payload_efficiency failed, final_review passed karena pengukuran benar; verify menghasilkan repair_needed dan 1 proposal. Collect ulang menghasilkan 0 proposal baru, total tetap 1. Kegagalan ini tidak berarti capture buruk untuk log besar. Fixture dipertahankan untuk inspeksi; bukan hasil agent A/B.
 
 Untuk perbaikan berikutnya, buat task baru yang mereferensikan bukti benchmark, uji perubahan pada dataset pengembangan, lalu ulangi trial pada skenario holdout. CLI belum memiliki importer benchmark, lifecycle proposal accept/reject/activate, atau scheduler riset mandiri. Langkah diagnosis dan pengerjaan tetap dilakukan chat aktif.
 

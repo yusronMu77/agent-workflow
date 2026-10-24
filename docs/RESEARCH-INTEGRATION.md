@@ -1,6 +1,6 @@
 # Pemasangan terpisah untuk research
 
-Kode kit berada di `C:/Users/mywork/Documents/project/agent-workflow`, sejajar dengan research.
+Kode kit berada di folder `agent-workflow`, sejajar dengan research.
 Buka `agent-workflow.code-workspace` untuk mengembangkan kit; buka `research.code-workspace`
 untuk pekerjaan riset. Research juga menampilkan kit sebagai folder workspace eksternal.
 

@@ -6,10 +6,10 @@ tidak memerlukan provider key, model tambahan atau MCP. Core dan state existing 
 
 ## Mulai di komputer baru
 
-Clone repo privat dengan login GitHub native. Pilih commit/tag yang sudah divalidasi:
+Repo publik (lisensi MIT). Pilih commit/tag yang sudah divalidasi:
 
 ```sh
-gh repo clone yusronMu77/agent-workflow
+git clone https://github.com/yusronMu77/agent-workflow.git
 cd agent-workflow
 git checkout <validated-commit-or-tag>
 python wf.py --version
@@ -34,17 +34,17 @@ native approvals tetap berlaku; ledger task bukan persetujuan publikasi atau dep
 
 ## Plugin dan fallback
 
-Katalog privat tersedia untuk kedua client. Paket yang sama membawa core dan satu skill.
+Katalog marketplace tersedia untuk kedua client. Paket yang sama membawa core dan satu skill.
 
 ```sh
 codex plugin marketplace add yusronMu77/agent-workflow --ref <validated-commit-or-tag>
-codex plugin add agent-workflow@agent-workflow-private
+codex plugin add agent-workflow@agent-workflow
 claude plugin marketplace add yusronMu77/agent-workflow
-claude plugin install agent-workflow@agent-workflow-private
+claude plugin install agent-workflow@agent-workflow
 ```
 
 Dalam chat Claude: `/plugin install agent-workflow --marketplace yusronMu77/agent-workflow`.
-Pemasangan privat, auth, pin ref dan smoke: [PRIVATE-PUBLISH.md](docs/PRIVATE-PUBLISH.md).
+Pin ref, catatan publikasi privat v1.0 dan smoke: [PRIVATE-PUBLISH.md](docs/PRIVATE-PUBLISH.md).
 Status bukti aktual per client/OS ada di [laporan implementasi](docs/IMPLEMENTATION-PORTABLE-PLUGIN.md).
 Dukungan plugin berbeda menurut versi/surface client; gunakan direct skill pada surface yang belum
 mendukungnya. Instalasi plugin dan validator schema tidak membuktikan native task smoke.
@@ -135,9 +135,13 @@ atas tracked list/diff tetap diperlukan sebelum upload. Jangan memasang plugin d
 berisi state; gunakan archive staging bersih atau Git ref bersih yang telah direview.
 
 CI menarget Windows/Linux Python 3.10 dan 3.15 (dipin pada M0). macOS belum diuji. Native client
-smoke dan private plugin auth terpisah dari CI Python. Tidak ada public marketplace atau lisensi
-open-source baru. Detail keputusan, acceptance F01–F18, evidence dan keterbatasan berada dalam
+smoke dan private plugin auth terpisah dari CI Python. Lisensi MIT ([LICENSE](LICENSE)); belum ada
+listing di marketplace publik resmi. Detail keputusan, acceptance F01–F18, evidence dan keterbatasan berada dalam
 [IMPLEMENTATION-PORTABLE-PLUGIN.md](docs/IMPLEMENTATION-PORTABLE-PLUGIN.md).
+
+## Lisensi
+
+MIT. Lihat [LICENSE](LICENSE).
 
 ## Troubleshooting
 

@@ -1,6 +1,7 @@
 # PRD: Agent Workflow sebagai toolkit dan plugin portabel
 
-Status: siap dijadikan spesifikasi implementasi; fitur target di bawah belum dinyatakan selesai.
+Status: spesifikasi v1.0, kini terimplementasi (lihat IMPLEMENTATION-PORTABLE-PLUGIN.md). Kata "privat" di dokumen ini
+menggambarkan scope v1.0; sejak v1.1 repo publik dengan lisensi MIT (lihat PRD-V1-1.md).
 Disusun 2026-10-24. Bahasa kerja: Indonesia. Pembaca: Claude atau Codex yang membuka repo ini
 melalui `agent-workflow.code-workspace`, termasuk chat baru tanpa riwayat percakapan.
 
@@ -26,7 +27,7 @@ dan tidak memberi izin eksternal.
 
 ## 2. Konteks dan baseline yang harus dipertahankan
 
-Root awal pada mesin pembuat adalah `C:\Users\mywork\Documents\project\agent-workflow`.
+Root awal pada mesin pembuat adalah folder `agent-workflow` di samping project research.
 Path ini hanya untuk menemukan project saat ini; **bukan konstanta runtime produk**. Setelah
 workspace dibuka, temukan root dari workspace/source yang benar, bukan dari current directory
 terminal yang belum diverifikasi.

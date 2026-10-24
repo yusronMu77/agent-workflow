@@ -1,7 +1,7 @@
 # Jalankan PRD dari workspace Agent Workflow
 
 Buka `agent-workflow.code-workspace` di root project ini. Pada mesin awal lokasinya
-`C:\Users\mywork\Documents\project\agent-workflow\agent-workflow.code-workspace`.
+`agent-workflow/agent-workflow.code-workspace` di folder project.
 Pilih Claude atau Codex, kemudian kirim salah satu prompt berikut. PRD adalah spesifikasi;
 workspace/task VS Code tidak otomatis mengeksekusinya saat dibuka.
 

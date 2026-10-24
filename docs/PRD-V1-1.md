@@ -61,18 +61,18 @@ Bukan tujuan: executor, router MCP, runner shell, hook global, atau pengukuran t
 
 ## 5. Kesiapan publik (Public readiness)
 
-Repo saat ini PRIVATE. Mengubah ke publik dan push adalah tindakan keluar mesin; keputusan pemilik.
+Repo sebelum v1.1 PRIVATE. Mengubah ke publik dan push adalah tindakan keluar mesin; pemilik memutuskan publik + MIT pada 2026-10-25.
 Syarat sebelum visibilitas diubah:
 
 | # | Syarat | Status |
 |---|---|---|
-| P1 | Pilih lisensi dan tambahkan `LICENSE` (belum ada; tanpa lisensi, kode publik tidak boleh dipakai ulang secara hukum) | Belum |
-| P2 | Pindai seluruh riwayat Git dengan gitleaks (bukan hanya tree); hasil sebelumnya hanya pada kandidat rilis | Belum diulang pada v1.1 |
-| P3 | Hapus path lokal dan nama fixture dari dokumen yang dilacak (`docs/RESEARCH-INTEGRATION.md` dan `docs/BENCHMARK-GUIDE.md` memuat path `C:/Users` lokal); `docs/audits/` memuat path lokal dan tidak di-stage | Sebagian |
-| P4 | Ganti petunjuk instalasi privat (`PRIVATE-PUBLISH.md`, README: "Clone repo privat") dengan petunjuk publik; hapus asumsi auth Git | Belum |
-| P5 | Tinjau `docs/` untuk klaim yang tidak lagi benar (mis. "tidak ada lisensi open-source baru") | Belum |
+| P1 | Pilih lisensi dan tambahkan `LICENSE` (tanpa lisensi, kode publik tidak boleh dipakai ulang secara hukum) | Selesai: MIT, `license` di tiga manifest, LICENSE masuk ZIP |
+| P2 | Pindai seluruh riwayat Git dengan gitleaks (bukan hanya tree); hasil sebelumnya hanya pada kandidat rilis | Selesai 2026-10-25: 4 commit, nol temuan (gitleaks 8.30.1); ulangi sebelum push |
+| P3 | Hapus path lokal dan nama fixture dari dokumen yang dilacak (`docs/RESEARCH-INTEGRATION.md` dan `docs/BENCHMARK-GUIDE.md` memuat path `C:/Users` lokal); `docs/audits/` memuat path lokal dan tidak di-stage | Selesai: path lokal dihapus dari semua file terlacak; `docs/audits/` tidak di-stage |
+| P4 | Ganti petunjuk instalasi privat dengan petunjuk publik; hapus asumsi auth Git | Selesai: README memakai `git clone` publik; marketplace diganti nama menjadi `agent-workflow`; PRIVATE-PUBLISH diberi catatan |
+| P5 | Tinjau `docs/` untuk klaim yang tidak lagi benar | Sebagian: README dan dokumen historis v1.0 diberi catatan; isi historis dibiarkan apa adanya |
 | P6 | Tag rilis `v1.1.0`, ZIP + checksum dari `build_release.py`, catatan rilis | Belum |
-| P7 | Konfirmasi tertulis pemilik: visibilitas, lisensi, dan push | Menunggu |
+| P7 | Konfirmasi tertulis pemilik: visibilitas, lisensi, dan push | Dikonfirmasi 2026-10-25: publik dan MIT. Email commit (`yusron@eluon.com`) di riwayat menunggu keputusan |
 
 ## 6. Rencana eksekusi
 

@@ -8,7 +8,7 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-TOP = ('VERSION', 'wf.py', 'README.md', 'AGENTS.md', 'CLAUDE.md',
+TOP = ('VERSION', 'LICENSE', 'wf.py', 'README.md', 'AGENTS.md', 'CLAUDE.md',
        'plugin.json', '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json',
        '.codex-plugin/plugin.json', '.agents/plugins/marketplace.json',
        'agent-workflow.code-workspace', '.gitignore', '.editorconfig', '.gitattributes')

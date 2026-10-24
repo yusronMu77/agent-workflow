@@ -2,6 +2,7 @@
   "name": "agent-workflow",
   "version": "1.1.0",
   "description": "Durable project workflow and bounded output retrieval for the current native coding chat.",
+  "license": "MIT",
   "author": {"name": "yusronMu77"},
   "repository": "https://github.com/yusronMu77/agent-workflow"
 }

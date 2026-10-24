@@ -1,6 +1,6 @@
 {
-  "name": "agent-workflow-private",
-  "interface": {"displayName": "Agent Workflow private"},
+  "name": "agent-workflow",
+  "interface": {"displayName": "Agent Workflow"},
   "plugins": [{
     "name": "agent-workflow",
     "source": {"source": "local", "path": "./"},

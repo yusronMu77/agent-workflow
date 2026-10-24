@@ -1,7 +1,8 @@
 # Implementasi portable plugin
 
 Versi 1.0.0 (2026-10-25). Implementasi M0–M6 dan qualification inti tercatat di bawah.
-Repo PRIVATE: https://github.com/yusronMu77/agent-workflow.
+Repo: https://github.com/yusronMu77/agent-workflow (PRIVATE saat v1.0; publik dengan lisensi MIT sejak v1.1).
+Bagian di bawah adalah catatan historis v1.0 dan menyebut repo privat apa adanya.
 Ref final, hasil CI pada ref itu dan checksum asset dicatat dalam release notes
 https://github.com/yusronMu77/agent-workflow/releases/tag/v1.0.0 setelah gate akhir lulus.
 Tidak ada klaim parity native kedua client, UI smoke, atau savings provider.

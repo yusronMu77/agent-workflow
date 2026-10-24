@@ -1,8 +1,11 @@
 # Publikasi dan pemasangan privat
 
-Target yang diizinkan: `yusronMu77/agent-workflow`, visibility **PRIVATE**.
+Catatan v1.1: repo kini publik dengan lisensi MIT. Dokumen ini mencatat publikasi privat v1.0; langkah
+marketplace/pin ref tetap berlaku, auth Git hanya diperlukan bila Anda memakai fork privat.
+
+Target v1.0: `yusronMu77/agent-workflow`, visibility **PRIVATE**.
 Candidate bukan final release. Status aktual terdapat di IMPLEMENTATION-PORTABLE-PLUGIN.md.
-Tidak ada credential yang dibundel. Tidak ada lisensi open-source yang ditambahkan.
+Tidak ada credential yang dibundel. Lisensi MIT ditambahkan pada v1.1.
 
 ## Candidate pertama (2026-10-25)
 
@@ -47,7 +50,7 @@ Codex CLI yang menyediakan perintah plugin:
 
 ```sh
 codex plugin marketplace add yusronMu77/agent-workflow --ref <validated-commit-or-tag>
-codex plugin add agent-workflow@agent-workflow-private --json
+codex plugin add agent-workflow@agent-workflow --json
 codex plugin list --marketplace agent-workflow-private --json
 ```
 
@@ -55,7 +58,7 @@ Claude Code:
 
 ```sh
 claude plugin marketplace add yusronMu77/agent-workflow
-claude plugin install agent-workflow@agent-workflow-private
+claude plugin install agent-workflow@agent-workflow
 claude plugin details agent-workflow
 ```
 
