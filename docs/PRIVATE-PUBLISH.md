@@ -11,7 +11,7 @@ Tidak ada credential yang dibundel. Lisensi MIT ditambahkan pada v1.1.
 
 Repo https://github.com/yusronMu77/agent-workflow dibuat dengan visibility PRIVATE, permission
 ADMIN dan akun aktif yusronMu77. Remote origin tepat ke repo tersebut. Candidate pertama
-`8af87460855ee817e4d3afe32087c12d226bba7c` dipush tanpa force; remote SHA dicocokkan ulang.
+`28c511085495f21659bd871474afa408cc74caec (hash setelah penulisan ulang riwayat 2026-10-25; tree identik)` dipush tanpa force; remote SHA dicocokkan ulang.
 48 file produk direview; staging tepat sama dengan allowlist; Gitleaks 8.30.1 memindai commit
 dengan nol temuan. `.agent-workflow`/auth/env/session DB/link tidak tracked. Ini catatan candidate,
 bukan bukti final release. Qualification akhir dicatat dalam laporan implementasi.

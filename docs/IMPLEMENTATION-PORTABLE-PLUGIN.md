@@ -123,7 +123,7 @@ hash/policy; versi lama tidak otomatis dianggap qualified pada state atau lokasi
 
 ## M5–M6: bukti publikasi dan native smoke
 
-Candidate awal `8af87460855ee817e4d3afe32087c12d226bba7c` dipush non-force ke remote yang
+Candidate awal `28c511085495f21659bd871474afa408cc74caec (hash setelah penulisan ulang riwayat 2026-10-25; tree identik)` dipush non-force ke remote yang
 diverifikasi. Akun/owner cocok, visibility PRIVATE, permission ADMIN, repo semula kosong.
 Gitleaks 8.30.1 memindai tracked history: nol temuan. DB/state/auth/env/session/link tidak tracked.
 CI candidate https://github.com/yusronMu77/agent-workflow/actions/runs/40122702119 lulus empat
