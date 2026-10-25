@@ -190,7 +190,7 @@ class Engine:
         else:
             path = self.project.resolve(reference)
         if path.stat().st_size > 32000000:
-            raise Rejected("Evidence/artifact exceeds32MB")
+            raise Rejected("Evidence/artifact exceeds 32MB")
         return {"ref": reference, "sha256": digest(path.read_bytes())}
 
     def captures(self, task_id):
@@ -228,7 +228,7 @@ class Engine:
             raise Rejected("Prepare/read context before verification")
         path = self.project.resolve(task["spec"]["output"])
         if not path.is_file() or path.stat().st_size > 32000000:
-            raise Rejected("Output missing or exceeds32MB; record failure evidence/checkpoint")
+            raise Rejected("Output missing or exceeds 32MB; record failure evidence/checkpoint")
         raw = path.read_bytes()
         output_hash = digest(raw)
         text = raw.decode("utf-8-sig", errors="replace")

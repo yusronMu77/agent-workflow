@@ -110,10 +110,10 @@ class Outputs:
         if path.name.casefold() in ('agents.md', 'claude.md', 'skill.md'):
             raise Rejected('Mandatory instructions must be read completely, not captured as output')
         if path.stat().st_size > LIMIT:
-            raise Rejected('Output exceeds32MB; split the source explicitly')
+            raise Rejected('Output exceeds 32MB; split the source explicitly')
         raw = path.read_bytes()
         if len(raw) > LIMIT:
-            raise Rejected('Output grew beyond32MB')
+            raise Rejected('Output grew beyond 32MB')
         try:
             raw.decode('utf-8-sig')  # Validate before creating owned files.
         except UnicodeDecodeError:
@@ -146,7 +146,7 @@ class Outputs:
             raise Rejected('Output metadata is unrecorded or changed')
         path = plain_path(directory / 'raw.txt')
         if path.stat().st_size > LIMIT:
-            raise Rejected('Archived output exceeds32MB')
+            raise Rejected('Archived output exceeds 32MB')
         raw = path.read_bytes()
         if digest(raw) != metadata['sha256'] or len(raw) != metadata['raw_bytes']:
             raise Rejected('Archived output hash changed')
