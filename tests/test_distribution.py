@@ -43,6 +43,7 @@ class DistributionTests(unittest.TestCase):
             self.assertNotIn('docs/private-notes.md', bundle.namelist())
             self.assertFalse(any('.agent-workflow/' in n for n in bundle.namelist()))
             self.assertIn('workflow_core/engine.py', bundle.namelist())
+            self.assertIn('skills/agent-workflow/references/advanced.md', bundle.namelist())
         (source / 'plugin.json').write_text('{"version":"99.0.0"}')
         with self.assertRaises(ValueError):
             build(self.base / 'bad', source)
@@ -56,6 +57,8 @@ class DistributionTests(unittest.TestCase):
                 execute('install', dry_run=True, **args)
                 self.assertEqual(list(target.iterdir()), [])
                 execute('install', **args)
+                for skill in target.rglob('SKILL.md'):
+                    self.assertTrue((skill.parent / 'references/advanced.md').is_file())
                 first = {str(p.relative_to(target)): p.read_bytes() for p in target.rglob('*') if p.is_file()}
                 execute('install', **args)
                 self.assertEqual(first, {str(p.relative_to(target)): p.read_bytes() for p in target.rglob('*') if p.is_file()})

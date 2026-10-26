@@ -8,7 +8,7 @@ mencatat apa yang sudah disetel untuk Claude Code dan apa yang belum.
 | Aspek | Perilaku |
 |---|---|
 | Discovery | Skill `agent-workflow` dimuat dari `.claude/skills/agent-workflow` (link ke kit) atau dari plugin `agent-workflow@agent-workflow-private`. |
-| Pemanggilan | Eksplisit lewat `/agent-workflow`, atau implisit bila model menilai deskripsi cocok. Deskripsi sengaja menyebut kapan **tidak** dipakai (pertanyaan, lookup, edit satu langkah). Konsistensi pemanggilan implisit belum diukur. |
+| Pemanggilan | Eksplisit lewat `/agent-workflow`, atau implisit bila model menilai deskripsi cocok. Deskripsi sengaja menyebut kapan **tidak** dipakai (pertanyaan, lookup, edit satu langkah). Uji runtime kecil memanggil skill pada resume dan tidak pada pertanyaan/edit kecil; precision/recall luas belum diukur. |
 | Eksekusi | Chat Claude yang sedang berjalan menjadi executor; `wf.py` dipanggil lewat tool Bash. Tidak ada MCP atau model tambahan. |
 | Pack | `CLAUDE.md` dimuat Claude Code sendiri, jadi `pack` mencantumkannya sebagai referensi (path, sha256, ukuran) dan tidak menyalin isinya. `AGENTS.md` tetap disalin karena Claude Code tidak memuatnya. |
 | Deteksi host | `CLAUDECODE=1` pada terminal Claude Code memilih `--host claude`. Host lain atau variabel tidak ada → semua instruksi disalin (`none`). |
@@ -72,7 +72,12 @@ memberi izin tambahan.
 
 ## Batas
 
-- Pemanggilan implisit, jalur plugin-install di chat Claude, dan penghematan token nyata belum diuji.
-- Hook (SessionStart/Stop) dan integrasi subagent belum ada. Pack tidak dirancang untuk diteruskan
-  ke subagent; satu task tetap dikerjakan satu chat.
+- Plugin diinstal pada scope project dan runtime eksplisit/implisit diuji; cakupan prompt masih kecil. Penghematan umum dan biaya provider belum terbukti.
+- Adapter reminder SessionStart/Stop sudah diuji melalui konfigurasi sesi terisolasi pada Windows; tidak diaktifkan global. Native /compact juga memicu SessionStart:compact dengan sukses. Untuk reviewer terpisah yang diotorisasi pengguna,
+  pack --audience subagent-review menyertakan semua policy dan kontrak review read-only.
+  Parent tetap memiliki task/output; pack tidak memulai agent, memberi izin atau menegakkan sandbox OS.
 - `capture --exit-code` adalah nilai yang Anda laporkan; kit tidak mengamati proses aslinya.
+
+## Hasil kualifikasi lanjutan
+
+Lihat [V1-2-QUALIFICATION.md](V1-2-QUALIFICATION.md). Pada Claude Code 2.1.302/Windows, pola literal PowerShell untuk doctor dengan path script dan --project berspasi diizinkan, sedangkan begin ditolak. Assignment/compound shell tidak cocok dengan allowlist python sempit; gunakan satu perintah per call. Ini bukan validasi semua wildcard Bash di atas. Adapter opsional scripts/session_reminder.py mengeluarkan konfigurasi lewat --print-settings; tinjau dan percayai konfigurasi sebelum memakainya. Ia tidak memasang hook atau mengubah status task.

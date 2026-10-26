@@ -57,6 +57,10 @@ perubahan konteks. Helper tidak dapat menghapus instruksi/history yang telah mas
 pisahkan cached input dan output/reasoning sesuai field yang tersedia, serta bandingkan kualitas,
 latency dan retry pada tugas yang sama. `rtk gain` bukan pengganti usage tersebut.
 
+Jalur `start`/`finish` menggabungkan operasi controller dan mengurangi pembacaan konteks berulang.
+Instruksi recovery dipisahkan dari jalur normal; policy project tidak diringkas. Pengukuran sesi
+native versi lama vs baru dan batas klaim ada di [WORKFLOW-EFFICIENCY.md](WORKFLOW-EFFICIENCY.md).
+
 ## Referensi instruksi yang sudah dimuat host
 
 `pack` mengenali file instruksi yang dimuat host sendiri (`CLAUDE.md` untuk Claude Code,

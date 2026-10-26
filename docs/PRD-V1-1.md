@@ -1,6 +1,8 @@
 # PRD: Agent Workflow v1.1 — bukti verifikasi, dukungan Claude Code, kesiapan publik
 
-Status: diimplementasi di cabang kerja, belum dirilis. Tanggal: 2026-10-25.
+Status: implementasi v1.1 sudah dirilis sebagai v1.1.0. Tanggal: 2026-10-25.
+Status backlog berikutnya: [V1-2-STATUS.md](V1-2-STATUS.md). Dokumen ini mempertahankan baseline
+dan hasil acceptance historis v1.1; bukan laporan verifikasi ulang layanan remote.
 Lanjutan dari [PRD-PORTABLE-PLUGIN.md](PRD-PORTABLE-PLUGIN.md). Dasar: review 2026-10-25
 (catatan riset `2026-10-25-review-agent-workflow-optimalisasi-claude.md` di project research) dan
 audit di [audits/](audits/).
@@ -71,8 +73,8 @@ Syarat sebelum visibilitas diubah:
 | P3 | Hapus path lokal dan nama fixture dari dokumen yang dilacak (`docs/RESEARCH-INTEGRATION.md` dan `docs/BENCHMARK-GUIDE.md` memuat path `C:/Users` lokal); `docs/audits/` memuat path lokal dan tidak di-stage | Selesai: path lokal dihapus dari semua file terlacak; `docs/audits/` tidak di-stage |
 | P4 | Ganti petunjuk instalasi privat dengan petunjuk publik; hapus asumsi auth Git | Selesai: README memakai `git clone` publik; marketplace diganti nama menjadi `agent-workflow`; PRIVATE-PUBLISH diberi catatan |
 | P5 | Tinjau `docs/` untuk klaim yang tidak lagi benar | Sebagian: README dan dokumen historis v1.0 diberi catatan; isi historis dibiarkan apa adanya |
-| P6 | Tag rilis `v1.1.0`, ZIP + checksum dari `build_release.py`, catatan rilis | Belum |
-| P7 | Konfirmasi tertulis pemilik: visibilitas, lisensi, dan push | Dikonfirmasi 2026-10-25: publik dan MIT. Email commit (`yusron@eluon.com`) di riwayat menunggu keputusan |
+| P6 | Tag rilis `v1.1.0`, ZIP + checksum dari `build_release.py`, catatan rilis | Selesai pada implementasi v1.1; tag lokal diverifikasi ulang, status remote tidak diperiksa ulang pada pekerjaan v1.2 |
+| P7 | Konfirmasi tertulis pemilik: visibilitas, lisensi, dan push | Selesai pada implementasi v1.1: publik, MIT, dan email commit ditulis ulang; pembersihan SHA lama masih tindakan pemilik |
 
 ## 6. Rencana eksekusi
 
@@ -81,9 +83,9 @@ Syarat sebelum visibilitas diubah:
 | M1 | R1–R8: engine, CLI, tes | Selesai: 64 tes lulus |
 | M2 | R9–R10: probe, deskripsi, dokumen, CI | Selesai |
 | M3 | R11 dan verifikasi penuh: portability, distribusi, probe | Selesai: semua lulus 2026-10-25 |
-| M4 | Commit lokal di cabang kerja | Menunggu perintah |
-| M5 | P1–P7, lalu push dan perubahan visibilitas | Menunggu keputusan pemilik |
-| M6 | Pilot A/B kecil (3–5 skenario dari BENCHMARK-GUIDE.md), tanpa fitur baru | Backlog v1.2 |
+| M4 | Commit lokal di cabang kerja | Selesai untuk v1.1; perubahan berikutnya tidak otomatis di-commit |
+| M5 | P1–P7, lalu push dan perubahan visibilitas | Selesai pada rilis v1.1 menurut catatan implementasi; pekerjaan v1.2 tidak melakukan push |
+| M6 | Pilot A/B kecil (3–5 skenario dari BENCHMARK-GUIDE.md), tanpa fitur baru | Selesai pada baseline snapshot v1.2: tiga skenario berat, enam sesi; artefak lulus, acceptance negatif dipertahankan |
 
 ## 7. Matriks validasi
 
@@ -108,13 +110,13 @@ atau penghematan token.
 | Kerangka skema tanpa migrasi | Guard menolak skema baru; migrasi pertama harus menambah tes upgrade sebelum kolom baru. |
 | Publikasi tanpa lisensi atau dengan data lokal | Bagian 5, semua syarat sebelum perubahan visibilitas. |
 
-## 9. Backlog v1.2 (tidak dikerjakan di sini)
+## 9. Backlog v1.2 (status rinci di V1-2-STATUS.md)
 
-1. Pilot A/B kecil dan pencatatan hasilnya.
-2. Kerangka migrasi skema dengan tes upgrade.
-3. Hook SessionStart/Stop opsional untuk mengingatkan task aktif, bila terbukti berguna.
-4. Jalur subagent untuk pack, bila ada kebutuhan nyata.
-5. Evaluasi lifecycle proposal feedback (accept/reject) hanya bila ada data penggunaan.
+1. Pilot A/B kecil dan pencatatan hasilnya: enam trial native desain 3D selesai, hasil dan batas tercatat di V1-2-HEAVY-PILOT.md.
+2. Kerangka migrasi skema dengan tes upgrade: diimplementasi lokal, skema produk tetap 1.
+3. Hook SessionStart/Stop opsional: adapter dan uji startup/resume/Stop Windows terisolasi selesai; kontrol UNKNOWN dibandingkan state yang dipulihkan. Tidak dipasang global; native /compact memicu SessionStart:compact dengan sukses.
+4. Jalur subagent untuk pack: diimplementasi sebagai kontrak reviewer read-only setelah pilot membutuhkan review visual terpisah; tanpa auto-dispatch.
+5. Lifecycle proposal feedback accept/reject: diimplementasi setelah kalibrasi menghasilkan proposal nyata; keputusan bukan aktivasi/perubahan konfigurasi.
 
 ## 10. Referensi
 

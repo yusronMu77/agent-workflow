@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import tempfile
+import time
 import uuid
 
 from .project import Project, Rejected, digest, plain_path
@@ -40,9 +42,25 @@ class Engine:
     def write_owned(self, path, data):
         path = plain_path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = plain_path(path.with_suffix(path.suffix + ".tmp"))
-        temporary.write_bytes(data)
-        temporary.replace(path)
+        descriptor, name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+        temporary = Path(name)
+        try:
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(data)
+                stream.flush()
+                os.fsync(stream.fileno())
+            for attempt in range(6):
+                try:
+                    temporary.replace(path)
+                    break
+                except PermissionError:
+                    # Concurrent MoveFileEx on Windows can transiently lock the
+                    # destination even with distinct staging files.
+                    if os.name != "nt" or attempt == 5:
+                        raise
+                    time.sleep(0.01 * (2 ** attempt))
+        finally:
+            temporary.unlink(missing_ok=True)  # Only this invocation's owned staging file.
 
     def create(self, task_id, request, workflow, output, sources=(), contains=(), checks=(), reviews=(), minutes=None):
         self.directory(task_id)
@@ -109,7 +127,13 @@ class Engine:
         self.write_owned(self.directory(task_id) / "checkpoint.json", (json.dumps(public, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
         return public
 
-    def pack(self, task_id, host=None):
+    def pack(self, task_id, host=None, audience="current", compact=False):
+        if audience not in ("current", "subagent-review"):
+            raise Rejected("Unknown context audience")
+        if audience == "subagent-review":
+            if host not in (None, "none"):
+                raise Rejected("A fresh reviewer requires --host none so every policy is included")
+            host = "none"
         host = detect_host() if host is None else host
         if host not in AUTOLOAD:
             raise Rejected("Unknown host; use claude, codex or none")
@@ -122,26 +146,63 @@ class Engine:
                  "# State\n" + json.dumps({k: task[k] for k in ("revision", "summary", "next_action", "repairs")}),
                  "# Required disk instructions (complete)" if not referenced else
                  "# Required disk instructions (inline, plus host-autoloaded references)"]
+        if compact:
+            criteria = [{k: value for k, value in c.items() if k in ("id", "kind", "value")}
+                        for c in spec["acceptance"]]
+            state = {k: task[k] for k in ("revision", "summary", "next_action", "repairs") if task[k] is not None}
+            parts = [f"# Task {task_id}\n{spec['request']}\nOutput: {spec['output']} ({spec['workflow']})",
+                     "Acceptance: " + json.dumps(criteria, ensure_ascii=False, separators=(",", ":")),
+                     "State: " + json.dumps(state, ensure_ascii=False, separators=(",", ":"))
+                     + "\nDeadline: " + spec["deadline"], "# Required instructions"]
         for policy in inline:
             parts.append("## " + policy["path"] + " sha256=" + policy["sha256"] + "\n" + policy["text"])
         for policy in referenced:
             size = len(policy["text"].encode("utf-8"))
-            parts.append("## " + policy["path"] + " sha256=" + policy["sha256"] + f" (reference, {size} bytes not repeated)\n"
+            if compact:
+                parts.append(f"## {policy['path']} sha256={policy['sha256']} (reference: {host} already loads it; reread if absent)")
+            else:
+                parts.append("## " + policy["path"] + " sha256=" + policy["sha256"] + f" (reference, {size} bytes not repeated)\n"
                          f"The {host} host loads this file itself; the hash was verified fresh when this pack was built. "
                          "Reread the file if it is not in your context, e.g. the chat started outside this project.")
         parts.append("# Selected evidence")
         for source in spec["sources"]:
             parts.append(f"## {source['ref']}:{source['start']}:{source['end']} sha256={source['sha256']}\n" + source["text"])
+        output = None
+        if audience == "subagent-review":
+            if self.project.resolve(spec["output"]).is_file():
+                output = self.evidence_snapshot(task_id, spec["output"])
+            parts.append("# Independent review contract\n"
+                         "Review only. Do not edit artifacts, run task transitions, claim the parent's output, or spawn another agent.\n"
+                         "Return findings to the parent with file/visual evidence. The parent owns acceptance and all writes.\n"
+                         "This is a prompt contract, not an operating-system sandbox or permission grant.\n"
+                         + json.dumps({"parent_task": task_id, "parent_revision": task["revision"],
+                                       "output": output, "dispatch": "none"}, ensure_ascii=False))
         parts.append("# Native boundary\nFollow host/global instructions and native approvals. This pack is not permission.\n"
                      "Reviews must reference actual evidence; unknown writes must be reconciled. Native history/tokens are not measured here.")
         data = ("\n\n".join(parts) + "\n").encode("utf-8")
         if len(data) > self.project.config["budget"]["pack_bytes"]:
             raise Rejected("Context byte budget exceeded; split evidence/task, never trim mandatory policy")
-        path = self.directory(task_id) / f"context-{task['revision']}.md"
+        prefix = "review-context" if audience == "subagent-review" else "context"
+        suffix = "-" + digest(data)[:12] if audience == "subagent-review" else ""
+        path = self.directory(task_id) / f"{prefix}-{task['revision']}{suffix}.md"
         self.write_owned(path, data)
         policy_bytes = sum(len(p['text'].encode('utf-8')) for p in inline)
         policy_ref_bytes = sum(len(p['text'].encode('utf-8')) for p in referenced)
         evidence_bytes = sum(len(s['text'].encode('utf-8')) for s in spec['sources'])
+        if audience == "subagent-review":
+            with self.store.tx() as db:
+                current = self.store.task(task_id)
+                if current["revision"] != task["revision"]:
+                    raise Rejected("Task changed while preparing reviewer context")
+                self.store.event(db, task_id, "review_context_prepared",
+                                 {"bytes": len(data), "sha256": digest(data), "parent_revision": task["revision"],
+                                  "output": output, "dispatch": "none", "policy_bytes": policy_bytes,
+                                  "evidence_bytes": evidence_bytes})
+            return {"id": task_id, "status": task["status"], "parent_revision": task["revision"],
+                    "audience": audience, "context_path": str(path), "context_bytes": len(data),
+                    "context_sha256": digest(data), "host": host, "policy_bytes": policy_bytes,
+                    "evidence_bytes": evidence_bytes, "output": output, "dispatch": "none",
+                    "write_authority": "none_by_contract_not_os_enforced", "native_authorization": "not_granted_by_pack"}
         self.store.transition(task_id, "running", "context_prepared", {"bytes": len(data), "sha256": digest(data),
                               "policy_bytes": policy_bytes, "evidence_bytes": evidence_bytes,
                               "host": host, "policy_ref_bytes": policy_ref_bytes},
@@ -200,9 +261,9 @@ class Engine:
     def capture_gate(self, task_id, output_hash):
         """Pass only for a caller-reported exit 0 captured while the output had exactly this hash."""
         bound = [c for c in self.captures(task_id) if c.get("output_sha256") == output_hash and c.get("exit_code") is not None]
-        if any(c["exit_code"] == 0 for c in bound):
-            return "passed"
-        return "failed" if bound else "not_checked"
+        if not bound:
+            return "not_checked"
+        return "passed" if bound[-1]["exit_code"] == 0 else "failed"
 
     def review(self, task_id, criterion, result, evidence, note):
         task = self.guard(task_id)

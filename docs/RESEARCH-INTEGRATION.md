@@ -15,7 +15,9 @@ python agent-setup/workflow.py feedback --collect
 Root research sudah diinisialisasi dengan folder dari workspace-nya. State project tetap di
 `research/.agent-workflow/`; state kit tersendiri tidak disatukan. Kedua project memiliki UUID
 berbeda. Skill Codex dan Claude project research memakai link ke sumber yang sama di kit;
-Codex root link tetap dikelola generator research. Native Claude runtime belum diuji.
+Codex root link tetap dikelola generator research. Probe struktural Claude dan
+`claude plugin validate` telah lulus pada v1.1 dan pemeriksaan backlog v1.2;
+hasil ini tidak membuktikan pemanggilan implisit atau kualitas sesi native end-to-end.
 
 `agent-setup/workflow.json` adalah binding relatif. Bila kit dipindahkan lagi, ubah binding secara
 sengaja lalu perbarui link yang dimiliki setup; jangan menimpa skill lain. Sources/provider/MCP,

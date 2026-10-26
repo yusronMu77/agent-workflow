@@ -14,16 +14,18 @@ TOP = ('VERSION', 'LICENSE', 'wf.py', 'README.md', 'AGENTS.md', 'CLAUDE.md',
        'agent-workflow.code-workspace', '.gitignore', '.editorconfig', '.gitattributes')
 PRODUCT = TOP + tuple('workflow_core/' + name + '.py' for name in
     ('__init__', 'engine', 'feedback', 'outputs', 'project', 'state')) + (
-    'skills/agent-workflow/SKILL.md', 'skills/agent-workflow/scripts/wf.py',
+    'skills/agent-workflow/SKILL.md', 'skills/agent-workflow/references/advanced.md', 'skills/agent-workflow/scripts/wf.py',
     'skills/agent-workflow/agents/openai.yaml', '.github/workflows/ci.yml',
     'scripts/build_release.py', 'scripts/install.py', 'scripts/install_chat.py',
     'scripts/verify_distribution.py', 'scripts/verify_portability.py',
-    'scripts/probe_codex_skill.py', 'scripts/probe_claude_skill.py', 'scripts/benchmark_outputs.py',
+    'scripts/probe_codex_skill.py', 'scripts/probe_claude_skill.py', 'scripts/benchmark_outputs.py', 'scripts/pilot_ab.py', 'scripts/pilot_heavy.py', 'scripts/pilot_native.py', 'scripts/pilot_grade.py', 'scripts/png_probe.py',
+    'scripts/qualify_io.py', 'scripts/qualify_native.py', 'scripts/grade_holdout.py', 'scripts/session_reminder.py',
     'tests/test_distribution.py', 'tests/test_workflow.py', 'tests/test_outputs.py', 'tests/test_v11.py',
+    'tests/test_migrations.py', 'tests/test_pilot.py', 'tests/test_heavy_pilot.py', 'tests/test_feedback_decisions.py', 'tests/test_review_pack.py', 'tests/test_qualification.py', 'tests/test_efficient_flow.py',
 ) + tuple('docs/' + name + '.md' for name in (
     'ARCHITECTURE', 'BENCHMARK-GUIDE', 'CHAT-SMOKE', 'CLAUDE-CODE', 'IMPLEMENTATION-PORTABLE-PLUGIN',
     'PRD-PORTABLE-PLUGIN', 'PRD-V1-1', 'PRIVATE-PUBLISH', 'RESEARCH-INTEGRATION', 'RUN-PORTABLE-PLUGIN',
-    'TOKEN-OPTIMIZATION'
+    'TOKEN-OPTIMIZATION', 'V1-2-STATUS', 'V1-2-HEAVY-PILOT', 'V1-2-QUALIFICATION', 'WORKFLOW-EFFICIENCY'
 )) + tuple(
     f'docs/{folder}/{name}.{extension}' for name in ('native-chat', 'portable-plugin')
     for folder, extension in (('src/diagrams', 'mmd'), ('img/diagrams', 'png'), ('img/diagrams', 'pdf')))

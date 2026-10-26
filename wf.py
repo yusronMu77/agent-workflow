@@ -8,7 +8,7 @@ import shutil
 import sys
 
 from workflow_core.engine import AUTOLOAD, CHECKS, Engine, WORKFLOWS
-from workflow_core.feedback import collect, commit_memory, propose_memory, recall
+from workflow_core.feedback import collect, commit_memory, decide, propose_memory, recall
 from workflow_core.project import Project, Rejected, digest
 from workflow_core.state import Store
 from workflow_core.outputs import Outputs
@@ -40,22 +40,34 @@ def main(argv=None):
     read.add_argument("--max-bytes", type=int, default=6000)
     metrics = commands.add_parser("metrics", help="Observed payload bytes; native tokens/cost remain unknown")
     metrics.add_argument("task")
-    new = commands.add_parser("begin")
-    new.add_argument("task")
-    new.add_argument("--request", required=True)
-    new.add_argument("--workflow", choices=WORKFLOWS, required=True)
-    new.add_argument("--output", required=True)
-    new.add_argument("--source", action="append", default=[], help="alias:path:start:end; inclusive 1-based UTF-8 line range")
-    new.add_argument("--require", action="append", default=[], help="Literal substring required in output; use --review-required for semantic acceptance")
-    new.add_argument("--check", action="append", default=[], choices=list(CHECKS),
-                     help="capture_exit_zero needs a capture --exit-code 0 made while the output had its current hash")
-    new.add_argument("--minutes", type=int, help="Task deadline in minutes (default: project budget)")
-    new.add_argument("--review-required", action="append", default=[])
+    for command in ("begin", "start"):
+        new = commands.add_parser(command)
+        new.add_argument("task")
+        new.add_argument("--request", required=True)
+        new.add_argument("--workflow", choices=WORKFLOWS, required=True)
+        new.add_argument("--output", required=True)
+        new.add_argument("--source", action="append", default=[], help="alias:path:start:end; inclusive 1-based UTF-8 line range")
+        new.add_argument("--require", action="append", default=[], help="Literal substring required in output; use --review-required for semantic acceptance")
+        new.add_argument("--check", action="append", default=[], choices=list(CHECKS),
+                         help="capture_exit_zero needs a capture --exit-code 0 made while the output had its current hash")
+        new.add_argument("--minutes", type=int, help="Task deadline in minutes (default: project budget)")
+        new.add_argument("--review-required", action="append", default=[])
+        if command == "start":
+            new.add_argument("--init", action="store_true", dest="initialize", help="Explicitly initialize a new single-root project if needed")
+            new.add_argument("--host", choices=sorted(AUTOLOAD))
+    finish = commands.add_parser("finish", help="Capture a real check, record explicit native review, then run all normal validators")
+    finish.add_argument("task")
+    finish.add_argument("--input", required=True)
+    finish.add_argument("--exit-code", type=int, required=True)
+    finish.add_argument("--review-result", choices=("passed", "failed"), required=True)
+    finish.add_argument("--review-note", required=True, help="Explicit attestation after inspecting artifact and actual check output")
     for name in ("pack", "show", "resume", "verify", "checkpoint", "evidence", "review", "unknown", "reconcile", "cancel", "rebind"):
         item = commands.add_parser(name)
         item.add_argument("task")
         if name == "pack":
             item.add_argument("--host", choices=sorted(AUTOLOAD), help="Reference instruction files this host autoloads instead of repeating them (default: detected; none inlines all)")
+            item.add_argument("--audience", choices=("current", "subagent-review"), default="current",
+                              help="subagent-review includes every policy and a read-only review contract; never dispatches")
         if name == "checkpoint":
             item.add_argument("--summary", required=True)
             item.add_argument("--next", required=True)
@@ -76,6 +88,10 @@ def main(argv=None):
             item.add_argument("--quiescent", action="store_true", help="Explicit native owner attests jobs/effects are settled; does not kill processes")
     feedback = commands.add_parser("feedback")
     feedback.add_argument("--collect", action="store_true")
+    feedback.add_argument("--decide", metavar="PROPOSAL_ID")
+    feedback.add_argument("--decision", choices=("accept", "reject"))
+    feedback.add_argument("--evidence")
+    feedback.add_argument("--note")
     memory = commands.add_parser("memory")
     sub = memory.add_subparsers(dest="memory_command", required=True)
     candidate = sub.add_parser("propose")
@@ -100,11 +116,14 @@ def main(argv=None):
             result = {"status": "initialized" if created else "already_initialized", "project_id": project.config["project_id"],
                       "roots": project.config["roots"], "state": str(project.db), "native_dispatch": "current_chat"}
         else:
+            if args.command == "start" and args.initialize:
+                Project.init(args.project)
             engine = Engine(args.project)
             if args.command == "doctor":
                 check = engine.store.connection.execute("PRAGMA quick_check").fetchone()[0]
                 result = {"status": "ok" if check == "ok" else "unhealthy", "database_check": check,
-                          "schema": 1, "project_id": engine.project.config["project_id"],
+                          "schema": int(engine.store.connection.execute("SELECT value FROM meta WHERE key='schema'").fetchone()[0]),
+                          "project_id": engine.project.config["project_id"],
                           "roots": {k: str(v) for k, v in engine.project.roots.items()},
                           "python": sys.version.split()[0], "sqlite": sqlite3.sqlite_version,
                           "version": (Path(__file__).resolve().parent / 'VERSION').read_text().strip(),
@@ -115,8 +134,29 @@ def main(argv=None):
             elif args.command == "begin":
                 result = engine.create(args.task, args.request, args.workflow, args.output,
                                        args.source, args.require, args.check, args.review_required, args.minutes)
+            elif args.command == "start":
+                checks = list(dict.fromkeys([*args.check, "capture_exit_zero"]))
+                engine.create(args.task, args.request, args.workflow, args.output,
+                              args.source, args.require, checks, args.review_required, args.minutes)
+                prepared = engine.pack(args.task, args.host, compact=True)
+                context = Path(prepared["context_path"]).read_text(encoding="utf-8")
+                result = {"id": args.task, "status": prepared["status"], "context": context,
+                          "context_path": prepared["context_path"], "authorization": "not_granted"}
+            elif args.command == "finish":
+                task = engine.guard(args.task)
+                if task["status"] not in ("running", "repair_needed", "needs_review") or not args.review_note.strip():
+                    raise Rejected("Finish requires a prepared active task and a concrete review note")
+                if not any(c["kind"] == "capture_exit_zero" for c in task["spec"]["acceptance"]):
+                    raise Rejected("Finish requires capture_exit_zero; use the manual review/verify path for older tasks")
+                engine.evidence_snapshot(args.task, task["spec"]["output"])
+                captured = Outputs(engine).capture(args.task, args.input, args.exit_code, budget=2048)
+                engine.review(args.task, "final_review", args.review_result, "output:" + captured["key"], args.review_note)
+                verified = engine.verify(args.task)
+                result = {"id": args.task, "status": verified["status"],
+                          "checks": [{"id": c["criterion"], "result": c["result"]} for c in verified["result"]["checks"]],
+                          "output_sha256": verified["result"]["output"]["sha256"], "check_log": captured}
             elif args.command == "pack":
-                result = engine.pack(args.task, args.host)
+                result = engine.pack(args.task, args.host, args.audience)
             elif args.command == "capture":
                 result = Outputs(engine).capture(args.task, args.input, args.exit_code, args.max_bytes, args.find)
             elif args.command == "read-output":
@@ -147,7 +187,14 @@ def main(argv=None):
                 result = {"tasks": [dict(row) for row in engine.store.connection.execute(
                     "SELECT id,status,revision,repairs,next_action FROM tasks ORDER BY updated DESC LIMIT 50")]}
             elif args.command == "feedback":
-                result = collect(engine.store) if args.collect else {"status": "observed"}
+                if args.decide:
+                    if args.collect or not all((args.decision, args.evidence, args.note)):
+                        raise Rejected("Use --decide ID --decision accept|reject --evidence REF --note TEXT, separately from --collect")
+                    result = decide(engine, args.decide, args.decision, args.evidence, args.note)
+                else:
+                    if args.decision or args.evidence or args.note:
+                        raise Rejected("--decision/--evidence/--note require --decide")
+                    result = collect(engine.store) if args.collect else {"status": "observed"}
                 result["proposals"] = [{**dict(row), "payload": json.loads(row["payload"])}
                                        for row in engine.store.connection.execute("SELECT * FROM proposals ORDER BY id LIMIT 50")]
                 result["pending_events"] = engine.store.connection.execute("SELECT count(*) FROM events WHERE delivered=0").fetchone()[0]

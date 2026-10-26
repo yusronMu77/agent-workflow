@@ -23,6 +23,34 @@ def collect(store):
     return {"status": "collected", "new_proposals": count, "total_proposals": total, "auto_apply": False}
 
 
+def decide(engine, proposal_id, decision, evidence, note):
+    """Record a bounded triage decision, never activate or edit configuration."""
+    if decision not in ("accept", "reject") or not note.strip() or len(note.encode("utf-8")) > 4000:
+        raise Rejected("Choose accept/reject and a nonempty note of at most 4000 bytes")
+    store = engine.store
+    status = {"accept": "accepted", "reject": "rejected"}[decision]
+    with store.tx() as db:
+        row = db.execute("SELECT * FROM proposals WHERE id=?", (proposal_id,)).fetchone()
+        if row is None:
+            raise Rejected("Feedback proposal not found")
+        payload = json.loads(row["payload"])
+        task_id = payload.get("task_id")
+        snapshot = engine.evidence_snapshot(task_id, evidence)
+        record = {"proposal_id": proposal_id, "decision": decision, "status": status,
+                  "evidence": snapshot, "note": note, "activation": "proposal_only"}
+        if row["status"] != "proposed":
+            previous = db.execute("SELECT payload FROM events WHERE kind='proposal_decided' ORDER BY created,rowid").fetchall()
+            matched = any(json.loads(event[0]) == record for event in previous)
+            if row["status"] == status and matched:
+                return {"status": status, "proposal_id": proposal_id, "idempotent": True,
+                        "auto_apply": False, "configuration_changed": False}
+            raise Rejected("Proposal already decided; decisions are immutable, create a follow-up instead")
+        db.execute("UPDATE proposals SET status=? WHERE id=? AND status='proposed'", (status, proposal_id))
+        store.event(db, task_id, "proposal_decided", record)
+    return {"status": status, "proposal_id": proposal_id, "idempotent": False,
+            "auto_apply": False, "configuration_changed": False}
+
+
 def propose_memory(store, source, quote):
     if not quote.strip() or len(quote.encode("utf-8")) > 4000:
         raise Rejected("Quote must be nonempty and bounded")

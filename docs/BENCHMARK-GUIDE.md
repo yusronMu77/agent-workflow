@@ -36,6 +36,10 @@ Angka tidak mencakup seluruh percakapan, pemanggilan workflow, waktu agent atau 
 
 ## 3. Benchmark kualitas agent A/B
 
+Untuk pilot awal tiga skenario/enam sesi, gunakan `scripts/pilot_ab.py prepare` dan
+`summarize`; perintah dan batas hasil ada di [V1-2-STATUS.md](V1-2-STATUS.md).
+Perangkat ini tidak menjalankan model dan template kosong tidak dihitung sebagai hasil.
+
 Siapkan snapshot proyek identik dan sesi chat baru untuk setiap trial. Gunakan model, effort, versi client, izin, tool catalog, batas waktu dan prompt tugas yang sama; catat jika tidak bisa dikendalikan. Jangan jalankan trial A dan B dalam percakapan yang sama karena history dapat mencemari hasil.
 
 - A: native chat tanpa Agent Workflow; tools tersedia sama.
@@ -87,7 +91,7 @@ Untuk acceptance yang dapat dihitung mesin (skrip pengukur atau pengecek yang be
 
 Demonstrasi aktual dilakukan di fixture di direktori sementara (`workflow-output-benchmark-*`): task efficiency-feedback menilai syarat delivered < raw pada scoped fixture. Nilai 874 > 35 membuat payload_efficiency failed, final_review passed karena pengukuran benar; verify menghasilkan repair_needed dan 1 proposal. Collect ulang menghasilkan 0 proposal baru, total tetap 1. Kegagalan ini tidak berarti capture buruk untuk log besar. Fixture dipertahankan untuk inspeksi; bukan hasil agent A/B.
 
-Untuk perbaikan berikutnya, buat task baru yang mereferensikan bukti benchmark, uji perubahan pada dataset pengembangan, lalu ulangi trial pada skenario holdout. CLI belum memiliki importer benchmark, lifecycle proposal accept/reject/activate, atau scheduler riset mandiri. Langkah diagnosis dan pengerjaan tetap dilakukan chat aktif.
+Untuk perbaikan berikutnya, buat task baru yang mereferensikan bukti benchmark, uji perubahan pada dataset pengembangan, lalu ulangi trial pada skenario holdout. CLI memiliki triage accept/reject dengan bukti melalui feedback --decide; aktivasi, importer umum ke feedback dan scheduler riset mandiri belum ada. Harness/grader native opsional tersedia untuk suite pilot; hasil berat dan batasnya di V1-2-HEAVY-PILOT.md. Langkah diagnosis dan pengerjaan tetap dilakukan chat aktif.
 
 ## 5. MetaMCP dan adapter lain
 

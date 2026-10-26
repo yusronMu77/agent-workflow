@@ -8,6 +8,10 @@ from .project import Rejected
 
 
 SCHEMA_VERSION = 1
+# Keys are the source version; each callable upgrades exactly one version using
+# db.execute(), never executescript() (which would commit the transaction).
+# Keep schema 1 until a real product change needs a migration.
+MIGRATIONS = {}
 
 
 def now():
@@ -38,27 +42,47 @@ class Store:
         self.project = project
         self.connection = sqlite3.connect(project.db, timeout=10, isolation_level=None)
         self.connection.row_factory = sqlite3.Row
-        self.connection.execute("PRAGMA foreign_keys=ON")
-        self.connection.execute("PRAGMA journal_mode=WAL")
-        self.connection.execute("PRAGMA synchronous=FULL")
         try:
+            self.connection.execute("PRAGMA foreign_keys=ON")
+            self.connection.execute("PRAGMA journal_mode=WAL")
+            self.connection.execute("PRAGMA synchronous=FULL")
             self._open()
         except BaseException:
             self.connection.close()  # A refused project/schema must not keep the database file locked.
             raise
 
     def _open(self):
-        self.connection.executescript(SCHEMA)
         with self.tx() as db:
             project = self.project
+            tables = {row[0] for row in db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
+            if not tables:
+                # executescript() implicitly commits; execute DDL separately so
+                # initialization, migrations and identity share the same lock.
+                for statement in SCHEMA.split(";"):
+                    if statement.strip():
+                        db.execute(statement)
+                db.execute("INSERT INTO meta VALUES('project_id',?)", (project.config["project_id"],))
+                db.execute("INSERT INTO meta VALUES('schema','1')")
+            elif "meta" not in tables:
+                raise Rejected("Unversioned database; preserve it and migrate explicitly")
             row = db.execute("SELECT value FROM meta WHERE key='project_id'").fetchone()
-            if row and row[0] != project.config["project_id"]:
+            if not row or row[0] != project.config["project_id"]:
                 raise Rejected("Database project identity mismatch")
-            db.execute("INSERT OR IGNORE INTO meta VALUES('project_id',?)", (project.config["project_id"],))
-            db.execute("INSERT OR IGNORE INTO meta VALUES('schema',?)", (str(SCHEMA_VERSION),))
-            found = int(db.execute("SELECT value FROM meta WHERE key='schema'").fetchone()[0])
+            row = db.execute("SELECT value FROM meta WHERE key='schema'").fetchone()
+            if not row or not isinstance(row[0], str) or not row[0].isascii() or not row[0].isdecimal() or int(row[0]) < 1:
+                raise Rejected("Invalid database schema metadata; preserve state for inspection")
+            found = int(row[0])
             if found > SCHEMA_VERSION:
                 raise Rejected("Database schema is newer than this kit; upgrade the kit, do not downgrade state")
+            for version in range(found, SCHEMA_VERSION):
+                if not callable(MIGRATIONS.get(version)):
+                    raise Rejected(f"Missing database migration {version} -> {version + 1}; upgrade the kit")
+            while found < SCHEMA_VERSION:
+                MIGRATIONS[found](db)
+                self.event(db, None, "schema_migrated", {"from": found, "to": found + 1})
+                found += 1
+                db.execute("UPDATE meta SET value=? WHERE key='schema'", (str(found),))
             db.execute("INSERT OR IGNORE INTO releases(id) VALUES('builtin-v1')")
 
     def close(self):

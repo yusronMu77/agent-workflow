@@ -22,9 +22,9 @@ Target projects retain their own root/parent/nested instructions, native approva
 
 ## Chat workflow
 
-For an explicit workflow request, or substantial multi-step work in a project initialized for this
-kit, read `skills/agent-workflow/SKILL.md` and use the CLI through the native terminal tool.
-Ordinary questions need no task. The current chat executes work; a task record never authorizes
+Native is the default, including for multi-step work. For an explicit workflow request, or a risky write
+in a project initialized for this kit, read `skills/agent-workflow/SKILL.md` and use the CLI through the
+native terminal tool. Ordinary questions need no task. The current chat executes work; a task record never authorizes
 external writes, provider changes, plugins, deployment or publication by itself.
 
 Bind the actual target project, requirements, roots and acceptance before executing a stage.

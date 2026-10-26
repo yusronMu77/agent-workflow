@@ -166,10 +166,14 @@ class Outputs:
         raw = sum(x['raw_bytes'] for x in captures)
         delivered = sum(x['delivered_bytes'] for x in captures + reads)
         packs = self._events(task, 'context_prepared')
+        review_packs = self._events(task, 'review_context_prepared')
         return dict(captures=len(captures), reads=len(reads), raw_payload_bytes=raw,
                     delivered_view_bytes=delivered, net_payload_bytes_proxy=raw - delivered,
                     pack_bytes=sum(x['bytes'] for x in packs),
                     pack_count=len(packs),
+                    review_pack_count=len(review_packs),
+                    review_pack_bytes=sum(x['bytes'] for x in review_packs),
+                    all_pack_bytes=sum(x['bytes'] for x in packs + review_packs),
                     policy_bytes=(sum(x['policy_bytes'] for x in packs)
                                   if all('policy_bytes' in x for x in packs) else None),
                     policy_ref_bytes=(sum(x['policy_ref_bytes'] for x in packs)

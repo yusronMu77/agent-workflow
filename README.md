@@ -71,6 +71,11 @@ verifikasi tujuan link dan lepaskan link milik kit sebelum memilih installer sal
 
 ## Siklus task
 
+Jalur ringkas lokal v1.2 tersedia melalui `start` dan `finish`. `start` memberi context langsung;
+`finish` mencatat log cek aktual dan review eksplisit lalu menjalankan validator yang sama.
+Aturan wajib dan review tambahan tetap berlaku. Contoh, batas dan pengukuran ada di
+[WORKFLOW-EFFICIENCY.md](docs/WORKFLOW-EFFICIENCY.md). Jalur manual berikut tetap didukung.
+
 ```sh
 python wf.py --project ROOT begin guide --request "Buat panduan" --workflow document --output project:docs/guide.md
 python wf.py --project ROOT pack guide
