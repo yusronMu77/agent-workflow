@@ -50,6 +50,14 @@ class PilotTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside"):
             prepare(self.base / "other")
 
+    def test_bare_ledger_folder_is_not_a_workspace_but_a_project_is(self):
+        # ~/.agent-workflow holds the cost ledger only; it must not block pilots under the home folder.
+        (self.base / ".agent-workflow").mkdir()
+        prepare(self.base / "ledger-only")
+        (self.base / ".agent-workflow" / "project.json").write_text("{}", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "outside"):
+            prepare(self.base / "project")
+
     def test_empty_template_remains_pending(self):
         result = self.report()
         self.assertEqual(result["status"], "pending_fresh_sessions")

@@ -5,11 +5,11 @@ import json
 import sys
 
 from .project import Rejected
-from . import (benchmarks, broker, candidates, catalog, changes, dispatch, harness, health, jobs, knowledge,
-               records, routing, rulesync)
+from . import (acceptance, benchmarks, broker, candidates, catalog, changes, dispatch, harness, health, jobs, knowledge,
+               models, records, routing, rulesync)
 
 COMMANDS = ("harness", "route", "catalog", "health", "candidate", "benchmark", "job", "mcp", "dispatch",
-            "change", "rules", "budget")
+            "change", "rules", "budget", "model", "acceptance")
 
 
 def rest(parser, help_text="command argv after --"):
@@ -164,6 +164,21 @@ def register(commands):
     item = commands.add_parser("budget", help="Task and end-to-end budget consumption")
     item.add_argument("task", nargs="?")
 
+    item = commands.add_parser("model", help="Additional OpenAI-compatible model workers (draft only)")
+    sub = item.add_subparsers(dest="action", required=True)
+    reg = sub.add_parser("register")
+    reg.add_argument("name")
+    reg.add_argument("--base-url", required=True, help="e.g. http://127.0.0.1:8080/v1")
+    reg.add_argument("--model", required=True)
+    reg.add_argument("--api-key-env", help="Name of the environment variable holding the key")
+    draft = sub.add_parser("draft")
+    draft.add_argument("task")
+    draft.add_argument("--model", required=True)
+    sub.add_parser("list")
+
+    item = commands.add_parser("acceptance", help="Outcome rates over recorded real tasks")
+    item.add_argument("--workflow")
+
 
 def budget(engine, task_id=None):
     config = engine.project.config["budget"]
@@ -260,6 +275,14 @@ def run(engine, args):
         return rulesync.dry_run(engine.project.root, argv_of(args) or None)
     if command == "budget":
         return budget(engine, args.task)
+    if command == "model":
+        if action == "register":
+            return models.register(engine, args.name, args.base_url, args.model, args.api_key_env)
+        if action == "draft":
+            return models.draft(engine, args.task, args.model)
+        return models.registry(engine)
+    if command == "acceptance":
+        return acceptance.report(engine, args.workflow)
     raise Rejected("Unsupported command")
 
 

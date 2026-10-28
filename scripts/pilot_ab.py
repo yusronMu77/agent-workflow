@@ -46,8 +46,9 @@ def prepare(output, seed=12, suite="smoke", design_studio=None):
     output = output.resolve()
     # Preserve previous plans/results and avoid accidentally benchmarking inside
     # a workspace whose parent instructions or skill discovery favor one arm.
+    # A project is .agent-workflow/project.json; a bare ~/.agent-workflow (cost ledger) is not one.
     for parent in output.parents:
-        if any((parent / name).exists() for name in ("AGENTS.md", "CLAUDE.md", ".agent-workflow")):
+        if any((parent / name).exists() for name in ("AGENTS.md", "CLAUDE.md", ".agent-workflow/project.json")):
             raise ValueError("Choose a pilot directory outside existing agent workspaces")
     if output.exists():
         raise ValueError("Choose a new pilot directory; existing trials are never overwritten")

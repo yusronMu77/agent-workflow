@@ -8,6 +8,8 @@
 - Belum dipasang: hook Stop `harness hook`, jadwal `scripts/worker.py`, broker MCP, profile dispatch terkualifikasi. Belum di-commit/push; CI `macos-latest` baru jalan setelah push.
 - Terbuka: uji native fitur baru, M6 gateway/model tambahan, acceptance pekerjaan nyata, keputusan rilis v1.2.
 - Terpasang di research: harness check `default` = `notes-index.ps1 check`, timeout 30 s (`.agent-workflow/harness.json`); VS Code task "Workflow: health MCP (statis/probe live)", "harness check task", "budget", "worker sekali jalan", "status UI"; **hook Stop `harness hook`** di `.claude/settings.json` (dipilih pemilik; "mode manual" tadinya berarti mode izin Claude, otomasi boleh). Hook diam saat mengizinkan dan fail-open saat error; `agent-setup/test_hooks.py` menyaringnya. Belum dipasang (tidak dipilih): jadwal worker, broker, profile dispatch.
+- Lanjutan hari yang sama: M6 (`workflow_core/models.py` worker OpenAI-compatible + selector model, `scripts/gateway.py` bertoken read/propose) dan `acceptance` dibangun; acceptance nyata kit 0,905 (22 task), research 1,0 (3 task). K7 dijalankan: 324 sesi, biaya per hasil null karena belum ada label K6. Checklist research 29/38; sisa 9 = uji native, input pemilik K6/K8/K9, macOS (perlu push), keputusan E.
+- Perbaikan: job memakai CREATE_NO_WINDOW (sebelumnya jendela terminal muncul tiap job di Windows); guard pilot hanya mengenali `.agent-workflow/project.json` (ledger `~/.agent-workflow` membuat 12 tes pilot gagal). 256 tes lulus.
 - Perbaikan: argumen perintah memakai `nargs="*"`, bukan REMAINDER (opsi seperti `--timeout` setelah nama sebelumnya ikut tertelan ke argv); tes regresi ditambah, 250 tes lulus.
 
 ## 2026-10-27 — sinkron checklist research ↔ kit

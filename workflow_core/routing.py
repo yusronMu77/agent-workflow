@@ -60,13 +60,25 @@ def select(engine, request, routes, task_id=None):
     choice, note = None, "no external selector configured"
     if config_file.is_file():
         config = json.loads(config_file.read_text(encoding="utf-8"))
-        result = runner.run(config["argv"], cwd=engine.project.root, timeout=config.get("timeout", 30),
-                            stdin=json.dumps({"request": request, "routes": routes}).encode("utf-8"))
+        question = json.dumps({"request": request, "routes": routes})
+        if config.get("model"):  # A registered model worker (models.json), e.g. a small local Qwen.
+            from .models import chat
+            try:
+                text = chat(engine, config["model"], [
+                    {"role": "system", "content": 'Pick one route. Reply only JSON {"route": NAME, "confidence": 0..1}.'},
+                    {"role": "user", "content": question}], 100)["text"]
+                result = {"exit_code": 0, "output": text.encode("utf-8")}
+            except Rejected:
+                result = {"exit_code": 1, "output": b""}
+            config.setdefault("name", config["model"])
+        else:
+            result = runner.run(config["argv"], cwd=engine.project.root, timeout=config.get("timeout", 30),
+                                stdin=question.encode("utf-8"))
         try:
             answer = json.loads(result["output"].decode("utf-8").strip().splitlines()[-1])
             if result["exit_code"] == 0 and answer.get("route") in routes:
                 choice = {"route": answer["route"], "confidence": answer.get("confidence"),
-                          "selector": "external:" + config.get("name", config["argv"][0])}
+                          "selector": "external:" + (config.get("name") or config["argv"][0])}
             else:
                 note = "external selector returned no known route; baseline used"
         except (ValueError, IndexError, AttributeError):

@@ -27,7 +27,8 @@ client configuration. Schema stays 1: new records are events in the existing out
 | --- | --- |
 | Codex host detection | Implemented: `CODEX_THREAD_ID` selects `codex`; `AGENT_WORKFLOW_HOST` overrides detection, for example `none` when an inherited variable does not prove the instructions were loaded. |
 | macOS | CI matrix now includes `macos-latest`; it has not run until the commit is pushed. |
-| Runtime implicit-invocation precision/recall, token overhead, Claude Code K5 stage, K6–K9 tools on real data | Still open. These need native sessions or real data and are outside unit tests. |
+| K7 on real data | Run 2026-10-28: `usage_ledger.py scan` read 324 native sessions (47 Claude, 277 Codex, counts only). Cost per accepted outcome stays unknown because no session has an outcome label yet (K6 owner feedback). |
+| Runtime implicit-invocation precision/recall, token overhead, Claude Code K5 stage, K6/K8/K9 on real data | Still open. These need native sessions or owner input (feedback, frozen regression set, batch approval). |
 
 ## Reference architecture roadmap (checklist D)
 
@@ -43,8 +44,9 @@ client configuration. Schema stays 1: new records are events in the existing out
 | M5: feedback promotion (staged patch, fresh acceptance, shadow, rollback) | Implemented through staged changes | `workflow_core/changes.py` |
 | M6: provider UI | Implemented as a read-only local status page | `scripts/status_ui.py` |
 | M6: selector integration in core | Implemented as a pluggable selector; a Qwen model runs only if configured in `.agent-workflow/selector.json` | `workflow_core/routing.py`; `route select` |
-| M6: gateway, additional worker models | Not built. The MetaMCP gateway decision (not installed) stands. |
-| Task acceptance on real user work | Open (needs real tasks). |
+| M6: gateway | Implemented as a token-protected local JSON API exposing read and propose operations only (the MetaMCP gateway decision stands) | `scripts/gateway.py`; needs `AGENT_WORKFLOW_GATEWAY_TOKEN` |
+| M6: additional worker models | Implemented for OpenAI-compatible endpoints (llama.cpp, Ollama, LM Studio); drafts go to task evidence only, and a registered model can back the selector | `workflow_core/models.py`; `model register/draft/list`, `selector.json` `{"model": NAME}` |
+| Task acceptance on real user work | Implemented and run on recorded tasks: kit 22 tasks, acceptance 0.905; research 3 tasks, 1.0 (2026-10-28) | `workflow_core/acceptance.py`; `acceptance [--workflow W]` |
 | Default end-to-end budget | Implemented: `budget.e2e_minutes` default 240 for new projects (240 assumed when absent); `budget [TASK]` reports consumption |
 
 ## Safety boundaries kept
@@ -80,5 +82,5 @@ schtasks /Create /SC MINUTE /MO 30 /TN agent-workflow-worker /TR "python <kit>\s
 
 ## Verification
 
-`python -m unittest discover -s tests` includes 23 roadmap tests. These use temporary projects, fake
+`python -m unittest discover -s tests` includes 29 roadmap tests. These use temporary projects, fake
 MCP servers and short Python child processes only.

@@ -387,5 +387,90 @@ class RulesyncBudgetWorkerTests(Base):
             self.engine = Engine(self.root)
 
 
+class FakeOpenAI:
+    """A local OpenAI-compatible endpoint that answers every chat completion with fixed text."""
+    def __init__(self, text):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        import threading
+        seen = self.seen = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                seen.append(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
+                body = json.dumps({"choices": [{"message": {"content": text}}], "usage": {"total_tokens": 7}}).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.url = f"http://127.0.0.1:{self.server.server_port}/v1"
+
+    def close(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+
+class ModelGatewayAcceptanceTests(Base):
+    def test_model_draft_is_evidence_only(self):
+        from workflow_core import models
+        fake = FakeOpenAI("draft body")
+        self.addCleanup(fake.close)
+        models.register(self.engine, "local", fake.url, "qwen")
+        self.engine.create("m", "Model fixture", "code", "project:out.py")
+        result = models.draft(self.engine, "m", "local")
+        self.assertEqual(result["status"], "drafted")
+        self.assertFalse((self.root / "out.py").exists())
+        self.assertIn("Model fixture", fake.seen[0]["messages"][1]["content"])
+        with self.assertRaises(Rejected):
+            models.register(self.engine, "bad", fake.url, "x", api_key_env="sk-not-a-name!")
+
+    def test_model_backed_selector(self):
+        from workflow_core import models
+        fake = FakeOpenAI('{"route": "scholar", "confidence": 0.8}')
+        self.addCleanup(fake.close)
+        models.register(self.engine, "qwen", fake.url, "qwen")
+        (self.root / ".agent-workflow" / "selector.json").write_text(json.dumps({"model": "qwen"}), encoding="utf-8")
+        picked = routing.select(self.engine, "cari paper", {"exa": "web search", "scholar": "papers"})
+        self.assertEqual((picked["route"], picked["selector"]), ("scholar", "external:qwen"))
+
+    def test_gateway_requires_token_and_exposes_no_writes(self):
+        import gateway
+        from http.server import ThreadingHTTPServer
+        import threading
+        import urllib.error
+        import urllib.request
+        self.task()
+        server = ThreadingHTTPServer(("127.0.0.1", 0), gateway.handler(self.root, "x" * 20))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        url = f"http://127.0.0.1:{server.server_port}/"
+
+        def post(operation, token):
+            request = urllib.request.Request(url, json.dumps({"operation": operation}).encode(),
+                                             {"Authorization": "Bearer " + token}, method="POST")
+            try:
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    return response.status, json.loads(response.read())
+            except urllib.error.HTTPError as error:
+                return error.code, json.loads(error.read())
+        self.assertEqual(post("list", "wrong")[0], 401)
+        status, body = post("list", "x" * 20)
+        self.assertEqual((status, body["result"]["tasks"][0]["id"]), (200, "t"))
+        self.assertEqual(post("change_activate", "x" * 20)[0], 400)
+        self.assertNotIn("restore", gateway.OPERATIONS)
+
+    def test_acceptance_report_over_recorded_tasks(self):
+        self.task()
+        harness.configure(self.engine, "default", [PY, "-c", "pass"])
+        self.cli("finish", "t", "--run", "--review-result", "passed", "--review-note", "fixture")
+        code, report = self.cli("acceptance")
+        self.assertEqual((code, report["acceptance_rate"], report["harness_verified_completed"]), (0, 1.0, 1))
+
+
 if __name__ == "__main__":
     unittest.main()

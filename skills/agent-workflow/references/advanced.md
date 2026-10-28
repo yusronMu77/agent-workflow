@@ -89,3 +89,5 @@ Details and boundaries: `docs/ROADMAP-IMPLEMENTATION.md`. All write only events/
 - Jobs and agents: `job start/list/stop/reap/admission`, `mcp register/lease/release/evict`, `dispatch profiles/qualify/send`.
 - Memory/state: `memory search --semantic`, `memory shadow-export --output DIR`, `restore --from FILE|--backups DIR [--auto]`,
   `rules dry-run`, `benchmark --input alias:file`, `budget [T]`.
+- Models/gateway/acceptance: `model register NAME --base-url URL --model M`, `model draft T --model NAME` (evidence only),
+  `acceptance`, `python scripts/gateway.py --project P` (token in AGENT_WORKFLOW_GATEWAY_TOKEN, read/propose only).
