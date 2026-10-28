@@ -54,7 +54,7 @@ mendukungnya. Instalasi plugin dan validator schema tidak membuktikan native tas
 ```sh
 python scripts/install.py check --client both --scope project --project /absolute/target
 # Jalankan dari checkout versi baru yang dipilih secara eksplisit:
-python scripts/install.py update --client both --scope project --project /absolute/target --version 1.1.0
+python scripts/install.py update --client both --scope project --project /absolute/target --version 1.2.0
 python scripts/install.py uninstall --client both --scope project --project /absolute/target --dry-run
 python scripts/install.py uninstall --client both --scope project --project /absolute/target
 ```

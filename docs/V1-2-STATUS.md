@@ -4,7 +4,7 @@ Kerangka migrasi tersedia tanpa mengubah skema produksi 1. Pilot berat tiga sken
 dijalankan dalam enam sesi native terpisah: seluruh artefak lulus, acceptance gabungan gagal
 karena satu pembacaan log inline. Review pack subagent dan lifecycle feedback sudah tersedia.
 Hasil pilot lama: [V1-2-HEAVY-PILOT.md](V1-2-HEAVY-PILOT.md). Verifikasi lanjutan dan bug yang ditemukan: [V1-2-QUALIFICATION.md](V1-2-QUALIFICATION.md).
-Versi paket tetap 1.1.0; perubahan ini belum merupakan rilis v1.2.
+Dirilis sebagai v1.2.0 pada 2026-10-28 bersama implementasi roadmap ([ROADMAP-IMPLEMENTATION.md](ROADMAP-IMPLEMENTATION.md)).
 
 ## Verifikasi sebelum implementasi
 
@@ -84,7 +84,7 @@ Ringkasan template kosong di `outputs/v12-pilot-pending.json` menghasilkan
 Iterasi lanjutan: 95 tes, portability, distribusi 66 file dan probe lulus. Enam sesi pilot berat
 sudah dinilai; satu pelanggaran panduan output membuat acceptance false. Review pack dan
 lifecycle feedback tersedia sesuai bukti kebutuhan/penggunaan. Hook reminder kemudian diuji terisolasi pada startup/resume/compact/Stop;
-core tidak mengintersep semua tools native. Saat iterasi ini ditulis belum ada commit, push, atau rilis baru; sejak itu snapshot v1.2 di-commit sebagai `74fe50c` (226 tes lulus per 2026-10-27), belum di-push, `VERSION` tetap 1.1.0 dan belum ada rilis v1.2.
+core tidak mengintersep semua tools native. Saat iterasi ini ditulis belum ada commit, push, atau rilis baru; sejak itu snapshot v1.2 di-commit sebagai `74fe50c` (226 tes lulus per 2026-10-27), kemudian di-push dan dirilis sebagai v1.2.0 pada 2026-10-28.
 
 Iterasi kualifikasi lanjutan: 103 tes lulus pada Windows Python 3.10 dan 3.13; sepuluh native log holdout/repetisi lulus. Race staging antarproses ditemukan dan diperbaiki. Runtime plugin Claude dan izin path berspasi teruji. Hasil serta batas macOS/compact/precision dan biaya provider ada di V1-2-QUALIFICATION.md.
 

@@ -2,6 +2,7 @@
 
 ## 2026-10-28 — roadmap B/C/D diimplementasikan (tes unit saja)
 
+- Rilis v1.2.0 atas perintah pemilik: `VERSION` dan tiga manifest plugin 1.2.0, tag `v1.2.0`, release GitHub dengan ZIP + `.sha256`. Belum diuji native: pemanggilan implisit skill, overhead token, fitur roadmap baru di sesi Claude/Codex sungguhan.
 - Di-push atas perintah pemilik. Run CI pertama gagal 5/6 job; diperbaiki: `wf.py` memotong argv di `--` sendiri (argparse Python 3.10), path temp di `qualify_io`/`test_qualification` di-`resolve()` (8.3 Windows, `/var` macOS), job wrapper Windows masuk Job Object kill-on-close (anak yatim memegang log; reproduksi lokal 2/20 → 0/20). Run 40628527531 hijau 6/6 termasuk macOS. Butir lama di bawah tentang "belum dipasang/di-push" sudah tidak berlaku.
 - Workflow task `roadmap-impl-2` completed: 15 butir fitur dari checklist research diimplementasikan; status per butir di `docs/ROADMAP-IMPLEMENTATION.md`. 249 tes lulus (23 baru di `tests/test_roadmap.py`), portability/distribusi/probe exit 0.
 - Keputusan: skema DB tetap 1; semua record baru (job, lease, change, candidate, route, benchmark) disimpan sebagai event outbox, bukan tabel baru, supaya tes migrasi dan state lama tidak terganggu.
