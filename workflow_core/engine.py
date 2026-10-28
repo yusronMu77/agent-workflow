@@ -14,14 +14,22 @@ from .state import Store, now
 
 WORKFLOWS = ("document", "code", "research", "design")
 TERMINAL = ("completed", "partial", "cancelled")
-CHECKS = ("json", "python_syntax", "pdf_header", "capture_exit_zero")
+CHECKS = ("json", "python_syntax", "pdf_header", "capture_exit_zero", "harness_exit_zero")
 # Instruction files a host loads into the chat by itself; a pack may reference instead of repeat them.
 AUTOLOAD = {"claude": ("CLAUDE.md",), "codex": ("AGENTS.md",), "none": ()}
 
 
 def detect_host():
-    """Claude Code exports CLAUDECODE=1 to its terminal tool; unknown hosts keep every policy inline."""
-    return "claude" if os.environ.get("CLAUDECODE") == "1" else "none"
+    """Claude Code exports CLAUDECODE=1, Codex exports CODEX_THREAD_ID; unknown hosts keep every policy inline.
+
+    AGENT_WORKFLOW_HOST overrides detection, e.g. none when an inherited variable does not prove
+    that the host loaded this project's instructions."""
+    explicit = os.environ.get("AGENT_WORKFLOW_HOST")
+    if explicit in AUTOLOAD:
+        return explicit
+    if os.environ.get("CLAUDECODE") == "1":
+        return "claude"
+    return "codex" if os.environ.get("CODEX_THREAD_ID") else "none"
 
 
 class Engine:
@@ -258,9 +266,13 @@ class Engine:
         return [json.loads(row["payload"]) for row in self.store.connection.execute(
             "SELECT payload FROM events WHERE task_id=? AND kind='output_captured' ORDER BY created, rowid", (task_id,))]
 
-    def capture_gate(self, task_id, output_hash):
-        """Pass only for a caller-reported exit 0 captured while the output had exactly this hash."""
-        bound = [c for c in self.captures(task_id) if c.get("output_sha256") == output_hash and c.get("exit_code") is not None]
+    def capture_gate(self, task_id, output_hash, verifier=None):
+        """Pass only for an exit 0 captured while the output had exactly this hash.
+
+        verifier="harness_process" ignores caller-reported codes and accepts only codes the harness
+        observed from the process; a timed-out run has no exit code and stays not_checked."""
+        bound = [c for c in self.captures(task_id) if c.get("output_sha256") == output_hash and c.get("exit_code") is not None
+                 and (verifier is None or c.get("verifier") == verifier)]
         if not bound:
             return "not_checked"
         return "passed" if bound[-1]["exit_code"] == 0 else "failed"
@@ -311,6 +323,8 @@ class Engine:
                     result = "passed" if raw.startswith(b"%PDF-") else "failed"
                 elif kind == "capture_exit_zero":
                     result = self.capture_gate(task_id, output_hash)
+                elif kind == "harness_exit_zero":
+                    result = self.capture_gate(task_id, output_hash, "harness_process")
                 elif kind == "review":
                     row = self.store.connection.execute("SELECT * FROM reviews WHERE task_id=? AND criterion=?", (task_id, criterion["id"])).fetchone()
                     if row:

@@ -102,7 +102,8 @@ class V11Tests(unittest.TestCase):
         with patch.dict(os.environ, {"CLAUDECODE": "1"}):
             self.assertEqual(detect_host(), "claude")
         with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("CLAUDECODE", None)
+            for name in ("CLAUDECODE", "CODEX_THREAD_ID", "AGENT_WORKFLOW_HOST"):
+                os.environ.pop(name, None)
             self.assertEqual(detect_host(), "none")
 
     def test_reference_pack_still_detects_policy_drift(self):

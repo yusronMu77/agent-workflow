@@ -4,6 +4,12 @@ import uuid
 from .project import Rejected, digest, plain_path
 from .state import now
 
+GENERIC = "Inspect this verified event before proposing a targeted change"
+HYPOTHESES = {"validation_failed": GENERIC, "outcome_unknown": GENERIC,
+              "route_corrected": "A routing rule or tool description led to the wrong choice; propose a wording/rule change",
+              "benchmark_failed": "An imported benchmark case failed; reproduce it as a task before changing rules",
+              "capability_gap": "No installed MCP/skill covers this need; research the suggested catalog/web queries"}
+
 
 def collect(store):
     """At-least-once outbox -> idempotent proposals; no prompt/config writes."""
@@ -11,9 +17,9 @@ def collect(store):
     with store.tx() as db:
         rows = db.execute("SELECT * FROM events WHERE delivered=0 ORDER BY created,id").fetchall()
         for row in rows:
-            if row["kind"] in ("validation_failed", "outcome_unknown", "route_corrected"):
+            if row["kind"] in HYPOTHESES:
                 proposal_id = digest(row["id"].encode("utf-8"))[:24]
-                payload = {"hypothesis": "Inspect this verified event before proposing a targeted change",
+                payload = {"hypothesis": HYPOTHESES[row["kind"]],
                            "event_kind": row["kind"], "evidence": json.loads(row["payload"]),
                            "task_id": row["task_id"], "activation": "proposal_only"}
                 count += db.execute("INSERT OR IGNORE INTO proposals(id,event_id,kind,payload) VALUES(?,?,?,?)",
@@ -97,7 +103,7 @@ def commit_memory(store, memory_id):
     return {"id": memory_id, "status": "verified_quote", "path": str(path), "semantic_truth": "not_inferred"}
 
 
-def recall(store, query):
+def recall(store, query, limit=5):
     rows = store.connection.execute("SELECT * FROM memories WHERE status='verified_quote' ORDER BY created DESC").fetchall()
     hits, skipped = [], 0
     for row in rows:
@@ -114,6 +120,6 @@ def recall(store, query):
             continue
         hits.append({"id": row["id"], "quote": row["quote"], "source": row["source"],
                      "source_sha256": row["source_hash"], "kind": "source_quote", "authority": "data_only"})
-        if len(hits) == 5:
+        if len(hits) == limit:
             break
     return {"hits": hits, "stale_or_revoked_skipped": skipped, "scope": store.project.config["project_id"]}

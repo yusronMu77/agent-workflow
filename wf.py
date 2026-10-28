@@ -12,6 +12,7 @@ from workflow_core.feedback import collect, commit_memory, decide, propose_memor
 from workflow_core.project import Project, Rejected, digest
 from workflow_core.state import Store
 from workflow_core.outputs import Outputs
+from workflow_core import cli_ext, harness, recovery
 
 
 def main(argv=None):
@@ -57,8 +58,10 @@ def main(argv=None):
             new.add_argument("--host", choices=sorted(AUTOLOAD))
     finish = commands.add_parser("finish", help="Capture a real check, record explicit native review, then run all normal validators")
     finish.add_argument("task")
-    finish.add_argument("--input", required=True)
-    finish.add_argument("--exit-code", type=int, required=True)
+    finish.add_argument("--input", help="Caller-saved check log; omit with --run")
+    finish.add_argument("--exit-code", type=int, help="Caller-reported exit code; omit with --run")
+    finish.add_argument("--run", action="store_true", help="Run the configured harness check; exit code read from the process")
+    finish.add_argument("--check", help="Harness check name for --run (default: default)")
     finish.add_argument("--review-result", choices=("passed", "failed"), required=True)
     finish.add_argument("--review-note", required=True, help="Explicit attestation after inspecting artifact and actual check output")
     for name in ("pack", "show", "resume", "verify", "checkpoint", "evidence", "review", "unknown", "reconcile", "cancel", "rebind"):
@@ -101,12 +104,21 @@ def main(argv=None):
     verify.add_argument("id")
     search = sub.add_parser("search")
     search.add_argument("--query", default="")
+    search.add_argument("--semantic", action="store_true", help="Rank fresh verified quotes by TF-IDF cosine")
+    shadow = sub.add_parser("shadow-export", help="Copy verified quotes into a new Basic Memory folder")
+    shadow.add_argument("--output", type=Path, required=True)
     release = commands.add_parser("revoke")
     release.add_argument("release")
     release.add_argument("--reason", required=True)
     backup = commands.add_parser("backup")
     backup.add_argument("--output", type=Path, required=True)
+    restore = commands.add_parser("restore", help="Restore verified DB backup; current state is preserved first")
+    restore.add_argument("--from", dest="source", type=Path)
+    restore.add_argument("--backups", type=Path, help="Folder of *.sqlite backups; newest valid is chosen")
+    restore.add_argument("--auto", action="store_true", help="Only restore when live quick_check fails")
+    cli_ext.register(commands)
     args = parser.parse_args(argv)
+    hook = args.command == "harness" and getattr(args, "action", None) == "hook"
     engine = None
     try:
         if args.command == "init":
@@ -115,6 +127,8 @@ def main(argv=None):
             store.close()
             result = {"status": "initialized" if created else "already_initialized", "project_id": project.config["project_id"],
                       "roots": project.config["roots"], "state": str(project.db), "native_dispatch": "current_chat"}
+        elif args.command == "restore":
+            result = recovery.restore(args.project, args.source, args.backups, args.auto)
         else:
             if args.command == "start" and args.initialize:
                 Project.init(args.project)
@@ -149,7 +163,14 @@ def main(argv=None):
                 if not any(c["kind"] == "capture_exit_zero" for c in task["spec"]["acceptance"]):
                     raise Rejected("Finish requires capture_exit_zero; use the manual review/verify path for older tasks")
                 engine.evidence_snapshot(args.task, task["spec"]["output"])
-                captured = Outputs(engine).capture(args.task, args.input, args.exit_code, budget=2048)
+                if args.run:
+                    if args.input or args.exit_code is not None:
+                        raise Rejected("--run reads the exit code from the process; do not also pass --input/--exit-code")
+                    captured = harness.run_check(engine, args.task, args.check)["check_log"]
+                elif args.input and args.exit_code is not None:
+                    captured = Outputs(engine).capture(args.task, args.input, args.exit_code, budget=2048)
+                else:
+                    raise Rejected("Finish needs --run, or --input and --exit-code")
                 engine.review(args.task, "final_review", args.review_result, "output:" + captured["key"], args.review_note)
                 verified = engine.verify(args.task)
                 result = {"id": args.task, "status": verified["status"],
@@ -203,6 +224,8 @@ def main(argv=None):
                     result = propose_memory(engine.store, args.source, args.quote)
                 elif args.memory_command == "verify-quote":
                     result = commit_memory(engine.store, args.id)
+                elif args.memory_command == "shadow-export" or args.semantic:
+                    result = cli_ext.memory_extension(engine, args)
                 else:
                     result = recall(engine.store, args.query)
             elif args.command == "revoke":
@@ -227,11 +250,20 @@ def main(argv=None):
                 result = {"status": "backed_up", "path": str(output), "sha256": digest(output.read_bytes()),
                           "scope": "DB only; artifacts and canonical refs require separate backup",
                           "restore": "requires_revocation_freshness_and_requalification_no_automatic_restore"}
+            elif args.command in cli_ext.COMMANDS:
+                result = cli_ext.run(engine, args)
             else:
                 raise Rejected("Unsupported command")
-        print(json.dumps(result, ensure_ascii=True))
+        if result or not hook:  # An allowing Stop hook prints nothing.
+            print(json.dumps(result, ensure_ascii=True))
         return 3 if result.get("status") in ("partial", "repair_needed", "needs_review", "blocked_outcome") else 0
-    except (OSError, ValueError, KeyError, sqlite3.Error) as error:
+    except Exception as error:
+        if hook:
+            # A broken hook must never trap the host in a blocked turn: fail open, report on stderr.
+            print(f"agent-workflow harness hook fail-open: {type(error).__name__}: {error}", file=sys.stderr)
+            return 0
+        if not isinstance(error, (OSError, ValueError, KeyError, sqlite3.Error)):
+            raise
         print(json.dumps({"status": "rejected", "reason": str(error)}, ensure_ascii=True), file=sys.stderr)
         return 2
     finally:

@@ -75,3 +75,17 @@ For commands, use the bundled launcher with `--project ABSOLUTE_TARGET --help`. 
 setup and portability, read `../../README.md` in a source/plugin package, or `_kit/README.md`
 in a direct skill installation, only when needed. These paths are relative to this skill directory.
 Do not claim Basic Memory, acpx, MetaMCP or Rulesync is installed/qualified by this helper.
+
+## Roadmap commands (unit-tested, not natively qualified)
+
+Details and boundaries: `docs/ROADMAP-IMPLEMENTATION.md`. All write only events/owned files unless named.
+
+- Harness verification: `harness configure NAME -- argv`, `harness run T`, `finish T --run --review-result R --review-note N`
+  (exit code read from the process; `--check harness_exit_zero` ignores caller-reported codes). `harness hook` is an opt-in Stop hook.
+- Routing provenance: `route record --chosen X --candidate Y --reason R`, `route correct EVENT --to Y --reason R`, `route select`.
+- Gaps and health: `catalog --need TEXT --skills DIR --mcp-config FILE`, `health --mcp-config FILE [--probe]`.
+- Staged changes (writes the target only on activate): `change propose/evaluate/review/activate/rollback`.
+- Candidates: `candidate trial --source DIR --trial-cmd JSON`, `candidate install ID --target alias:path`, `candidate rollback`.
+- Jobs and agents: `job start/list/stop/reap/admission`, `mcp register/lease/release/evict`, `dispatch profiles/qualify/send`.
+- Memory/state: `memory search --semantic`, `memory shadow-export --output DIR`, `restore --from FILE|--backups DIR [--auto]`,
+  `rules dry-run`, `benchmark --input alias:file`, `budget [T]`.

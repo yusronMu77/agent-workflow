@@ -82,7 +82,7 @@ class Project:
         if any(not (root / value).resolve().is_dir() for value in mappings.values()):
             raise Rejected("Workspace/root directory is missing")
         config = {"schema": 1, "project_id": str(uuid.uuid4()), "roots": mappings,
-                  "budget": {"pack_bytes": 64000, "source_bytes": 1000000, "repairs": 2, "minutes": 60},
+                  "budget": {"pack_bytes": 64000, "source_bytes": 1000000, "repairs": 2, "minutes": 60, "e2e_minutes": 240},
                   "automation": "observe_propose", "native_context_tokens": None}
         with path.open("x", encoding="utf-8", newline="\n") as output:
             output.write(json.dumps(config, indent=2) + "\n")

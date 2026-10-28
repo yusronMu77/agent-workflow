@@ -114,6 +114,16 @@ class Outputs:
         raw = path.read_bytes()
         if len(raw) > LIMIT:
             raise Rejected('Output grew beyond 32MB')
+        return self.store(task, spec, source, raw, exit_code, budget, find, 'caller_reported')
+
+    def capture_process(self, task, run, budget=6000):
+        """Archive output whose exit code was observed by the harness from the process itself."""
+        spec = self.engine.guard(task)["spec"]
+        source = 'harness:' + ' '.join(run['argv'])[:200]
+        return self.store(task, spec, source, run['output'], run['exit_code'], budget, None, 'harness_process',
+                          timed_out=run['timed_out'], seconds=run['seconds'])
+
+    def store(self, task, spec, source, raw, exit_code, budget, find, verifier, **extra):
         try:
             raw.decode('utf-8-sig')  # Validate before creating owned files.
         except UnicodeDecodeError:
@@ -122,7 +132,7 @@ class Outputs:
         artifact = self.engine.project.resolve(spec['output'])
         output_sha256 = digest(artifact.read_bytes()) if artifact.is_file() and artifact.stat().st_size <= LIMIT else None
         metadata = dict(key=key, source=source, sha256=digest(raw), raw_bytes=len(raw), exit_code=exit_code,
-                        output_sha256=output_sha256)
+                        output_sha256=output_sha256, verifier=verifier, **extra)
         result = bounded_view(raw, metadata, budget, find=find)
         directory = self.directory(task, key)
         directory.mkdir(parents=True, exist_ok=False)
