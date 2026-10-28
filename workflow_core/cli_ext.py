@@ -37,6 +37,8 @@ def register(commands):
     configure = sub.add_parser("configure")
     configure.add_argument("name")
     configure.add_argument("--timeout", type=int, default=600)
+    configure.add_argument("--watch", action="append", default=[],
+                           help="Glob relative to the project; the Stop hook reruns the check when matches change")
     rest(configure)
     run = sub.add_parser("run")
     run.add_argument("task")
@@ -209,7 +211,7 @@ def run(engine, args):
     command, action = args.command, getattr(args, "action", None)
     if command == "harness":
         if action == "configure":
-            return harness.configure(engine, args.name, argv_of(args), args.timeout)
+            return harness.configure(engine, args.name, argv_of(args), args.timeout, args.watch)
         if action == "run":
             return harness.run_check(engine, args.task, args.check, argv_of(args))
         payload = json.loads(sys.stdin.read() or "{}")

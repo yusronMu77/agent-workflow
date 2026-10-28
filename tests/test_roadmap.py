@@ -58,10 +58,10 @@ class Base(unittest.TestCase):
         path.write_text(text, encoding="utf-8")
         return path
 
-    def task(self, task_id="t", checks=("capture_exit_zero",)):
-        self.engine.create(task_id, "Fixture task", "code", "project:out.py", checks=checks)
+    def task(self, task_id="t", checks=("capture_exit_zero",), output="out.py"):
+        self.engine.create(task_id, "Fixture task", "code", "project:" + output, checks=checks)
         self.engine.pack(task_id, host="none")
-        self.write("out.py", "print(1)\n")
+        self.write(output, "print(1)\n")
         return task_id
 
     def cli_raw(self, *argv):
@@ -102,6 +102,56 @@ class HarnessTests(Base):
         self.assertEqual(decision["decision"], "block")
         self.assertIn("exit 4", decision["reason"])
         self.assertEqual(harness.stop_hook(self.engine, {"stop_hook_active": True}), {})
+
+    def counting_check(self, fails_when):
+        """Check that appends one line per run to runs.txt and fails while notes/bad.md exists."""
+        return [PY, "-c", "import pathlib, sys; p = pathlib.Path('runs.txt'); "
+                "p.write_text(p.read_text() + 'x' if p.exists() else 'x'); "
+                f"sys.exit(3 if pathlib.Path('{fails_when}').exists() else 0)"]
+
+    def runs(self):
+        path = self.root / "runs.txt"
+        return len(path.read_text()) if path.exists() else 0
+
+    def test_native_mode_reruns_only_when_watched_files_change(self):
+        harness.configure(self.engine, "default", self.counting_check("notes/bad.md"), watch=["notes/*.md"])
+        self.write("notes/a.md", "a\n")
+        self.assertEqual(harness.stop_hook(self.engine, {}), {})
+        self.assertEqual(self.runs(), 1)
+        self.assertEqual(harness.stop_hook(self.engine, {}), {})  # unchanged: not rerun
+        self.assertEqual(self.runs(), 1)
+        self.write("notes/bad.md", "b\n")
+        decision = harness.stop_hook(self.engine, {})
+        self.assertEqual(decision["decision"], "block")
+        self.assertIn("exit 3", decision["reason"])
+        self.assertIn("watched files changed", decision["reason"])
+        self.assertEqual(harness.stop_hook(self.engine, {}), {})  # same failure blocks once
+        self.assertEqual(self.runs(), 2)
+        (self.root / "notes/bad.md").unlink()
+        self.assertEqual(harness.stop_hook(self.engine, {}), {})
+        self.assertEqual(self.runs(), 3)
+
+    def test_without_watch_or_task_the_hook_runs_nothing(self):
+        harness.configure(self.engine, "default", self.counting_check("never"))
+        self.assertEqual(harness.stop_hook(self.engine, {}), {})
+        self.assertEqual(self.runs(), 0)
+
+    def test_task_mode_runs_the_check_once_for_all_active_tasks(self):
+        self.task("t1", checks=("harness_exit_zero",))
+        self.task("t2", checks=("harness_exit_zero",), output="out2.py")
+        harness.configure(self.engine, "default", self.counting_check("never"))
+        self.assertEqual(harness.stop_hook(self.engine, {}), {})
+        self.assertEqual(self.runs(), 1)
+        for task in ("t1", "t2"):
+            checks = {c["criterion"]: c["result"] for c in self.engine.verify(task)["result"]["checks"]}
+            self.assertEqual(checks["harness_exit_zero"], "passed")
+
+    def test_watch_patterns_stay_inside_the_project(self):
+        for pattern in ("../x/*.md", "/etc/*", "C:/x/*", "..\\x\\*.md"):
+            with self.assertRaises(Rejected):
+                harness.configure(self.engine, "default", [PY, "-c", "pass"], watch=[pattern])
+        code, result = self.cli("harness", "configure", "default", "--watch", "notes/*.md", "--", PY, "-c", "pass")
+        self.assertEqual((code, result["watch"]), (0, ["notes/*.md"]))
 
     def test_hook_cli_is_silent_when_allowing_and_fails_open(self):
         with patch("sys.stdin", io.StringIO("{}")):

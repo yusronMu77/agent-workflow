@@ -19,7 +19,7 @@ client configuration. Schema stays 1: new records are events in the existing out
 | Worker/scheduler for background self-improvement | Implemented (observe/propose only) | `scripts/worker.py` | `python scripts/worker.py --project P [--interval S]` |
 | Health check per MCP/tool | Implemented | `workflow_core/health.py` | `health --mcp-config FILE [--probe]` |
 | Provenance of tool/MCP routing decisions | Implemented | `workflow_core/routing.py` | `route record`, `route history`, `route select` |
-| Verification by the harness instead of the agent's report | Implemented; Stop hook is opt-in and not installed | `workflow_core/harness.py`, `workflow_core/runner.py` | `harness configure/run/hook`, `finish --run`, check `harness_exit_zero` |
+| Verification by the harness instead of the agent's report | Implemented; Stop hook is opt-in (installed in research). With `--watch` it also covers native work without a task | `workflow_core/harness.py`, `workflow_core/runner.py` | `harness configure/run/hook`, `finish --run`, check `harness_exit_zero` |
 
 ## Items that were tests, not features (checklist C)
 
@@ -65,7 +65,7 @@ client configuration. Schema stays 1: new records are events in the existing out
   result is a manual handoff.
 - The worker never activates, installs or dispatches.
 
-## Opt-in Stop hook (not installed)
+## Opt-in Stop hook
 
 ```json
 {"hooks": {"Stop": [{"hooks": [{"type": "command",
@@ -73,6 +73,12 @@ client configuration. Schema stays 1: new records are events in the existing out
 ```
 
 Configure the check first: `python wf.py --project P harness configure default -- python -m unittest discover -s tests`.
+
+The hook runs the check once per Stop and captures the result for every active task whose output exists.
+Native work has no task, so add `--watch GLOB` (repeatable, relative to the project): without an active
+task the hook then runs the check only when the content of the matched files changed since the last run,
+recorded in `.agent-workflow/harness-state.json`. A failure blocks once; the next change reruns the check.
+Keep the check timeout below the host hook timeout, because the host kills a hook that runs too long.
 
 ## Scheduling the worker (not installed)
 
