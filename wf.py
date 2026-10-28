@@ -117,7 +117,15 @@ def main(argv=None):
     restore.add_argument("--backups", type=Path, help="Folder of *.sqlite backups; newest valid is chosen")
     restore.add_argument("--auto", action="store_true", help="Only restore when live quick_check fails")
     cli_ext.register(commands)
-    args = parser.parse_args(argv)
+    # Split the child command at the first "--" ourselves: Python 3.10 argparse mis-assigns a
+    # nargs="*" positional followed by options and "--" (fixed only in later versions).
+    argv = list(sys.argv[1:] if argv is None else argv)
+    command = argv[argv.index("--") + 1:] if "--" in argv else None
+    args = parser.parse_args(argv[:argv.index("--")] if command is not None else argv)
+    if command is not None:
+        if not hasattr(args, "argv"):
+            parser.error("this command takes no -- command")
+        args.argv = command
     hook = args.command == "harness" and getattr(args, "action", None) == "hook"
     engine = None
     try:

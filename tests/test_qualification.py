@@ -24,7 +24,7 @@ class ArtifactConcurrencyTests(unittest.TestCase):
 
     def test_failed_replace_preserves_old_artifact_and_cleans_only_own_temp(self):
         with tempfile.TemporaryDirectory(prefix="workflow-stage-test-") as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()  # Runner temp may be an 8.3 name or a symlink.
             target = root / "artifact.txt"
             target.write_bytes(b"old")
             unrelated = root / "other.tmp"

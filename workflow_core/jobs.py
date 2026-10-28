@@ -6,6 +6,7 @@ from pathlib import Path
 import signal
 import subprocess
 import sys
+import time
 
 from .project import Rejected, plain_path
 from .records import checked_name, emit, events, fold, new_id
@@ -137,6 +138,12 @@ def stop(engine, job_id, note):
             os.killpg(job["pid"], signal.SIGTERM)
         except ProcessLookupError:
             pass
+    # Return only after the tree is gone, so its log file is no longer held open.
+    child = folder(engine, job_id) / "child.json"
+    pids = [job["pid"]] + ([json.loads(child.read_text(encoding="utf-8"))["pid"]] if child.is_file() else [])
+    deadline = time.monotonic() + 10
+    while any(alive(pid) for pid in pids) and time.monotonic() < deadline:
+        time.sleep(0.1)
     emit(engine.store, job.get("owner_task"), "job_stopped", {"id": job_id, "note": note})
     return {"status": "stopped", "id": job_id}
 

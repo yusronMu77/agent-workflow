@@ -32,7 +32,7 @@ def writer(target, data, barrier, queue):
 
 
 def probe(rounds=3):
-    root = Path(tempfile.mkdtemp(prefix="workflow-io-qualification-"))
+    root = Path(tempfile.mkdtemp(prefix="workflow-io-qualification-")).resolve()
     context = multiprocessing.get_context("spawn")
     records = []
     for index in range(rounds):
@@ -82,7 +82,7 @@ def reservation_writer(root, task_id, barrier, queue):
 
 
 def probe_reservations():
-    root = Path(tempfile.mkdtemp(prefix="workflow-reservation-qualification-"))
+    root = Path(tempfile.mkdtemp(prefix="workflow-reservation-qualification-")).resolve()
     Project.init(root)
     engine = Engine(root)
     database = engine.project.db
